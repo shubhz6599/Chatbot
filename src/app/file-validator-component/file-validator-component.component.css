@@ -1,0 +1,102 @@
+/* file-validator.component.css */
+.file-validator {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 30px;
+  height: 100%;
+}
+
+.validator-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.validator-header h2 {
+  color: #3a0ca3;
+  margin: 0 0 10px 0;
+}
+
+.validator-header p {
+  color: #6c757d;
+  margin: 0;
+}
+
+.upload-area {
+  border: 2px dashed #e9ecef;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 30px;
+}
+
+.upload-area:hover {
+  border-color: #4361ee;
+  background-color: rgba(67, 97, 238, 0.05);
+}
+
+.upload-area i {
+  font-size: 48px;
+  color: #6c757d;
+  margin-bottom: 15px;
+}
+
+.upload-area p {
+  margin: 0 0 5px 0;
+  color: #495057;
+}
+
+.file-types {
+  font-size: 0.9rem;
+  color: #6c757d !important;
+}
+
+.file-input {
+  display: none;
+}
+
+.validation-rules {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.validation-rules h3 {
+  margin: 0 0 15px 0;
+  color: #3a0ca3;
+}
+
+.validation-rules ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #495057;
+}
+
+.validation-rules li {
+  margin-bottom: 8px;
+}
+
+.validation-result {
+  padding: 15px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.validation-result.valid {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.validation-result.invalid {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.validation-result i {
+  font-size: 24px;
+}

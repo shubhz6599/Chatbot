@@ -1,0 +1,24 @@
+<!-- sidebar.component.html -->
+<div class="sidebar" [class.collapsed]="collapsed" (click)="onSidebarClick($event)">
+  <div class="sidebar-header">
+    <div class="logo">
+      <i class="material-icons">smart_toy</i>
+      <span *ngIf="!collapsed">ChatBot</span>
+    </div>
+  </div>
+
+  <div class="menu-items">
+    <div *ngFor="let item of menuItems"
+         class="menu-item"
+         (click)="onMenuItemClick(item.view, $event)"
+         [class.active]="item.view === 'chat'">
+      <i class="material-icons">{{ item.icon }}</i>
+      <span *ngIf="!collapsed">{{ item.text }}</span>
+    </div>
+  </div>
+
+  <!-- Toggle button - only visible when sidebar is open -->
+  <button class="toggle-btn" (click)="onToggleClick($event)" *ngIf="!collapsed">
+    <i class="material-icons">chevron_left</i>
+  </button>
+</div>

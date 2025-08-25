@@ -1,0 +1,120 @@
+<!-- chat-area.component.html -->
+<div class="chat-area h-100 d-flex flex-column">
+  <div class="chat-header">
+    <h2>Chat Assistant</h2>
+    <div class="status">
+      <span class="status-dot"></span>
+      Online
+    </div>
+  </div>
+
+  <!-- Error message snackbar -->
+  <div class="error-snackbar" *ngIf="errorMessage">
+    <div class="error-content">
+      <i class="material-icons">error</i>
+      <span>{{ errorMessage }}</span>
+    </div>
+  </div>
+
+  <!-- Initial suggestions -->
+  <div class="suggestions" *ngIf="dynamicSuggestions.length === 0">
+    <div class="suggestion" *ngFor="let question of initialQuestions"
+         (click)="selectSuggestion(question)">
+      {{ question }}
+    </div>
+  </div>
+
+  <!-- Dynamic suggestions based on speech -->
+  <div class="suggestions" *ngIf="dynamicSuggestions.length > 0">
+    <div class="suggestion" *ngFor="let question of dynamicSuggestions"
+         (click)="selectSuggestion(question)">
+      {{ question }}
+    </div>
+  </div>
+
+  <div class="chat-messages flex-grow-1">
+    <!-- Welcome message with animated robot -->
+    <div class="message bot-message welcome-message">
+      <div class="robot-container">
+        <div class="robot">
+          <div class="robot-head">
+            <div class="robot-face">
+              <div class="robot-eye left-eye"></div>
+              <div class="robot-eye right-eye"></div>
+              <div class="robot-mouth"></div>
+            </div>
+            <div class="robot-antenna"></div>
+          </div>
+          <div class="robot-body">
+            <div class="robot-detail"></div>
+          </div>
+        </div>
+        <div class="tooltip-side" *ngIf="showTooltip">
+          Hello! How can I assist you today?
+        </div>
+      </div>
+    </div>
+
+    <!-- Regular messages -->
+    <ng-container *ngFor="let message of messages; let i = index">
+      <div class="message"
+           [class.user-message]="message.sender === 'user'"
+           [class.bot-message]="message.sender === 'bot'">
+
+        <!-- Typing indicator -->
+        <div *ngIf="message.typing" class="typing-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+
+        <!-- Message content -->
+        <div *ngIf="!message.typing" class="message-content">
+          {{ message.text }}
+        </div>
+
+        <!-- Action buttons for specific bot messages -->
+        <div *ngIf="message.actions && message.sender === 'bot'" class="action-buttons">
+          <button *ngFor="let action of message.actions"
+                  class="action-button"
+                  (click)="handleAction(action.action, message.text)">
+            {{ action.text }}
+          </button>
+        </div>
+
+        <div class="message-time">{{ getCurrentTime() }}</div>
+      </div>
+    </ng-container>
+  </div>
+
+  <div class="chat-input">
+    <!-- Mic button - shown when not listening and not processing -->
+    <button class="mic-button" (click)="onStartListening()"
+            *ngIf="!isListening && !isProcessingSpeech" [disabled]="isWaitingForBot">
+      <i class="material-icons">mic</i>
+    </button>
+
+    <!-- Processing indicator - shown when processing speech -->
+    <div class="processing-indicator" *ngIf="isProcessingSpeech && !isListening">
+      <div class="processing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+
+    <!-- Stop button - shown when listening -->
+    <button class="stop-button" (click)="onStopListening()"
+            *ngIf="isListening">
+      <i class="material-icons">stop</i>
+    </button>
+
+    <input [(ngModel)]="userInput" placeholder="Type your message..."
+           (keyup.enter)="sendMessage()" [disabled]="isWaitingForBot">
+
+    <button class="send-button" (click)="sendMessage()"
+            [disabled]="isWaitingForBot || !userInput.trim()">
+      <i class="material-icons">send</i>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,23 @@
+<!-- chat-history.component.html -->
+<div class="chat-history">
+  <div class="history-header">
+    <h2>Chat History</h2>
+    <button class="new-chat-btn">
+      <i class="material-icons">add</i>
+      New Chat
+    </button>
+  </div>
+
+  <div class="history-list">
+    <div *ngFor="let session of sessionHistory; let i = index"
+         class="session-item"
+         (click)="viewSession(i)">
+      <div class="session-preview">
+        {{ session[0].text }}
+      </div>
+      <div class="session-date">
+        Today at {{ getCurrentTime() }}
+      </div>
+    </div>
+  </div>
+</div>
