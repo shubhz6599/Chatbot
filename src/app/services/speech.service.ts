@@ -1,6 +1,7 @@
-// speech.service.ts
+// speech.service.ts (updated)
 import { Injectable } from '@angular/core';
-import { Observable, Subject } from 'rxjs';
+import { Observable, Subject, timer } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -9,6 +10,7 @@ export class SpeechService {
   private recognition: any;
   private speechSubject = new Subject<string>();
   private isListening = false;
+  private stopListening$ = new Subject<void>();
 
   constructor() {
     this.initSpeechRecognition();
@@ -17,8 +19,8 @@ export class SpeechService {
   private initSpeechRecognition() {
     // Check if the browser supports the Web Speech API
     if ('webkitSpeechRecognition' in window) {
-      this.recognition = new (window as any).webkitSpeechRecognition();
-      this.recognition.continuous = false;
+      this.recognition = new (window as any).webkitSpeechRecognition() || new (window as any).SpeechRecognition();
+      this.recognition.continuous = true;
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
 
@@ -63,14 +65,16 @@ export class SpeechService {
 
       // Reinitialize the recognition
       this.initSpeechRecognition();
-
       this.recognition.start();
       this.isListening = true;
+
+    return this.speechSubject.asObservable();
     }
     return this.speechSubject.asObservable();
   }
 
   stopListening() {
+    this.stopListening$.next();
     if (this.recognition && this.isListening) {
       this.recognition.stop();
       this.isListening = false;
@@ -91,6 +95,7 @@ export class SpeechService {
       }
       this.isListening = false;
       this.speechSubject = new Subject<string>();
+      this.stopListening$ = new Subject<void>();
       this.initSpeechRecognition();
     }
   }

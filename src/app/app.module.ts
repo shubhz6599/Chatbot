@@ -6,25 +6,23 @@ import { AppComponent } from './app.component';
 import { SidebarComponentComponent } from './sidebar-component/sidebar-component.component';
 import { ChatAreaComponentComponent } from './chat-area-component/chat-area-component.component';
 import { ChatHistoryComponentComponent } from './chat-history-component/chat-history-component.component';
-import { FileValidatorComponentComponent } from './file-validator-component/file-validator-component.component';
-import { VoiceRecordingComponentComponent } from './voice-recording-component/voice-recording-component.component';
 import { FormsModule } from '@angular/forms';
-
+import { ValidationService } from './services/validation.service';
+import { Papa } from 'ngx-papaparse';
 @NgModule({
   declarations: [
     AppComponent,
     SidebarComponentComponent,
     ChatAreaComponentComponent,
     ChatHistoryComponentComponent,
-    FileValidatorComponentComponent,
-    VoiceRecordingComponentComponent,
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
-    FormsModule
+    FormsModule,
   ],
-  providers: [],
+  providers: [ValidationService,
+    Papa],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

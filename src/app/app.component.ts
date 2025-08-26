@@ -1,4 +1,3 @@
-// app.component.ts
 import { Component } from '@angular/core';
 
 @Component({
@@ -8,26 +7,70 @@ import { Component } from '@angular/core';
 })
 export class AppComponent {
   currentView: string = 'chat';
-  isSidebarCollapsed: boolean = false;
+  isSidebarCollapsed: boolean = true;
   isListening: boolean = false;
+  currentSession: any = null;
+  sessionHistory: any[] = [];
+  isMinimized: boolean = true;
 
-  toggleSidebar() {
-    this.isSidebarCollapsed = !this.isSidebarCollapsed;
+  constructor() {
+    this.loadSessionHistory();
+    if (!this.currentSession) this.createNewSession();
   }
 
+  toggleChatbot() {
+    this.isMinimized = !this.isMinimized;
+    if (!this.isMinimized) this.currentView = 'chat';
+  }
+
+  toggleSidebar() { this.isSidebarCollapsed = !this.isSidebarCollapsed; }
+
   changeView(view: string) {
-    this.currentView = view;
-    // Stop listening if we switch views
-    if (this.isListening) {
-      this.isListening = false;
+    // allow only 'chat' and 'history'
+    this.currentView = (view === 'history') ? 'history' : 'chat';
+    if (this.isListening) this.isListening = false;
+  }
+
+  onStartListening() { this.isListening = true; }
+  onStopListening() { this.isListening = false; }
+
+  onSessionSelected(session: any) {
+    this.currentSession = session;
+    this.currentView = 'chat';
+  }
+
+  onSessionUpdated(updatedSession: any) {
+    this.currentSession = updatedSession;
+    const index = this.sessionHistory.findIndex(s => s.id === updatedSession.id);
+    if (index !== -1) this.sessionHistory[index] = updatedSession;
+    else this.sessionHistory.unshift(updatedSession);
+    this.saveSessionHistory();
+  }
+
+  createNewSession() {
+    const newSession = {
+      id: Date.now(),
+      title: 'New Chat',
+      messages: [{ sender: 'bot', text: 'Hello! How can I assist you today?', timestamp: new Date() }],
+      date: new Date(),
+      lastUpdated: new Date()
+    };
+    this.currentSession = newSession;
+    this.sessionHistory.unshift(newSession);
+    this.saveSessionHistory();
+  }
+
+  loadSessionHistory() {
+    const saved = localStorage.getItem('chatHistory');
+    if (saved) {
+      this.sessionHistory = JSON.parse(saved);
+      if (this.sessionHistory.length > 0 && !this.currentSession) {
+        this.currentSession = this.sessionHistory[0];
+      }
     }
   }
 
-  onStartListening() {
-    this.isListening = true;
-  }
-
-  onStopListening() {
-    this.isListening = false;
+  saveSessionHistory() {
+    localStorage.setItem('chatHistory', JSON.stringify(this.sessionHistory));
   }
 }

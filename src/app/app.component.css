@@ -1,44 +1,85 @@
-/* app.component.css */
-.app-container {
-  display: flex;
-  height: 100vh;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  overflow: hidden;
+.app-wrapper { position: relative; height: 100vh; overflow: hidden; }
+
+/* Header – red theme */
+.modern-header {
+  height: 70px;
+  background: linear-gradient(135deg, #e31837 0%, #b51229 100%);
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 40px; box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+  position: relative; z-index: 1000;
+}
+.header-left { flex: 1; }
+.header-center { flex: 2; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.header-right { flex: 1; display:flex; justify-content:flex-end; }
+
+.logo { display:flex; align-items:center; gap:10px; color:white; font-weight:600; font-size:1.2rem; }
+.logo i { font-size:28px; }
+.modern-header h2 { margin:0; color:white; font-size:1.4rem; font-weight:600; }
+
+.status { display:flex; align-items:center; gap:8px; color: rgba(255,255,255,0.9); font-size:0.9rem; margin-top:4px; }
+.status-dot { width:10px; height:10px; background-color:#4ade80; border-radius:50%; animation: blink 2s infinite; }
+@keyframes blink {
+  0% { opacity:1; box-shadow:0 0 0 0 rgba(74,222,128,0.7); }
+  50% { opacity:.7; box-shadow:0 0 0 8px rgba(74,222,128,0); }
+  100% { opacity:1; box-shadow:0 0 0 0 rgba(74,222,128,0); }
 }
 
-.main-content {
-  flex: 1;
-  transition: all 0.3s ease;
-  background-color: #f5f7fb;
-  overflow: hidden;
-  height: 100vh;
-
+.header-btn {
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,0.15); color: white; display:flex; align-items:center; justify-content:center;
+  cursor: pointer; transition: all 0.2s ease;
 }
+.header-btn:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
+.close-btn:hover { background: rgba(255,255,255,0.3); }
 
-.sidebar-collapsed {
-  margin-left: 70px;
-  width: calc(100% - 70px);
+/* Minimized bot */
+.minimized-chatbot { position: fixed; bottom: 20px; right: 20px; z-index: 10000; cursor: pointer; }
+.floating-robot { position: relative; animation: float 3s ease-in-out infinite; }
+.robot-bubble {
+  position: absolute; bottom: 70px; right: 0; background: white; padding: 12px 16px; border-radius: 18px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-width: 200px; animation: pulse 2s infinite;
 }
+.bubble-text { font-size: 0.9rem; color: #e31837; font-weight: 500; }
+.bubble-tail { position: absolute; bottom: -10px; right: 20px; width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-top:10px solid white; }
 
-.sidebar-expanded {
-  margin-left: 250px;
-  width: calc(100% - 250px);
+.robot-icon { width: 60px; height: 80px; position: relative; }
+.robot-head {
+  width: 50px; height: 40px; background: linear-gradient(135deg, #e31837 0%, #b51229 100%);
+  border-radius: 15px 15px 5px 5px; position: relative; margin: 0 auto; animation: head-tilt 3s infinite ease-in-out;
 }
+.robot-face { position: absolute; top: 10px; left: 10px; width: 30px; height: 20px; }
+.robot-eye { width: 8px; height: 8px; background-color: white; border-radius: 50%; position: absolute; animation: eye-blink 3s infinite; }
+.left-eye { left: 0; } .right-eye { right: 0; }
+.robot-mouth { width: 15px; height: 3px; background-color: white; position: absolute; bottom: 0; left: 7.5px; border-radius: 2px; animation: talk 1.5s infinite; }
 
-.h-100 {
-  height: 100%;
-  margin: 0 5px 0 5px;
-}
+.robot-antenna { width: 3px; height: 10px; background-color: #b51229; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); }
+.robot-antenna::after { content: ''; width: 6px; height: 6px; background-color: white; border-radius: 50%; position: absolute; top: -5px; left: 50%; transform: translateX(-50%); animation: glow 2s infinite; }
+.robot-body { width: 60px; height: 40px; background: linear-gradient(135deg, #e31837 0%, #b51229 100%); border-radius: 5px 5px 15px 15px; position: relative; margin: 0 auto; }
+.robot-detail { width: 30px; height: 10px; background-color: white; border-radius: 5px; position: absolute; top: 15px; left: 15px; animation: glow 2s infinite; }
 
-/* Ensure the main content doesn't overlap with the toggle button */
+/* layout */
+.expanded-chatbot { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 9999; display: flex; flex-direction: column; }
+.app-container { display: flex; flex: 1; height: calc(100vh - 70px); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+.main-content { flex: 1; transition: all 0.3s ease; background-color: #f5f7fb; overflow: hidden; height: 100%; }
+.sidebar-collapsed { margin-left: 70px; width: calc(100% - 70px); }
+.sidebar-expanded { margin-left: 250px; width: calc(100% - 250px); }
+.h-100 { height: 100%; margin: 0 5px 0 5px; }
+
+/* animations */
+@keyframes float { 0%{transform:translateY(0)} 50%{transform:translateY(-10px)} 100%{transform:translateY(0)} }
+@keyframes pulse { 0%{transform:scale(1); box-shadow:0 4px 12px rgba(0,0,0,0.15)} 50%{transform:scale(1.05); box-shadow:0 6px 16px rgba(0,0,0,0.2)} 100%{transform:scale(1); box-shadow:0 4px 12px rgba(0,0,0,0.15)} }
+@keyframes head-tilt { 0%,100%{transform:rotate(0)} 25%{transform:rotate(5deg)} 75%{transform:rotate(-5deg)} }
+@keyframes eye-blink { 0%,45%,50%,55%,100%{height:8px; background-color:white} 47%,53%{height:1px; background-color:rgba(255,255,255,0.7)} }
+@keyframes talk { 0%,50%,100%{height:3px} 25%,75%{height:6px} }
+@keyframes glow { 0%,100%{box-shadow:0 0 5px white; opacity:1} 50%{box-shadow:0 0 15px white; opacity:0.8} }
+
+/* responsive tweaks */
 @media (max-width: 768px) {
-  .sidebar-collapsed {
-    margin-left: 70px;
-    width: calc(100% - 70px);
-  }
-
-  .sidebar-expanded {
-    margin-left: 250px;
-    width: calc(100% - 250px);
-  }
+  .modern-header { padding: 0 15px; }
+  .modern-header h2 { font-size: 1.2rem; }
+  .logo span { display: none; }
+  .sidebar-collapsed { margin-left: 70px; width: calc(100% - 70px); }
+  .sidebar-expanded { margin-left: 250px; width: calc(100% - 250px); }
+  .minimized-chatbot { bottom: 10px; right: 10px; }
+  .robot-bubble { max-width: 150px; font-size: 0.8rem; }
 }

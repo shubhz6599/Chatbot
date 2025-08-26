@@ -1,31 +1,77 @@
-<!-- app.component.html -->
-<div class="app-container">
-  <app-sidebar-component
-    [collapsed]="isSidebarCollapsed"
-    (toggleSidebar)="toggleSidebar()"
-    (changeView)="changeView($event)">
-  </app-sidebar-component >
-
-  <div class="main-content" [class.sidebar-collapsed]="isSidebarCollapsed" [class.sidebar-expanded]="!isSidebarCollapsed">
-    <div *ngIf="currentView === 'chat'" class="h-100">
-      <app-chat-area-component
-        [isListening]="isListening"
-        (startListening)="onStartListening()"
-        (stopListening)="onStopListening()">
-      </app-chat-area-component >
-    </div>
-
-    <div *ngIf="currentView === 'history'" class="h-100">
-      <app-chat-history-component ></app-chat-history-component >
-    </div>
-
-    <div *ngIf="currentView === 'validator'" class="h-100">
-      <app-file-validator-component ></app-file-validator-component >
+<div class="app-wrapper">
+  <!-- Minimized Chatbot View -->
+  <div class="minimized-chatbot" *ngIf="isMinimized" (click)="toggleChatbot()">
+    <div class="floating-robot">
+      <div class="robot-bubble">
+        <div class="bubble-text">Having trouble? I'm Here To Help</div>
+        <div class="bubble-tail"></div>
+      </div>
+      <div class="robot-icon">
+        <div class="robot-head">
+          <div class="robot-face">
+            <div class="robot-eye left-eye"></div>
+            <div class="robot-eye right-eye"></div>
+            <div class="robot-mouth"></div>
+          </div>
+          <div class="robot-antenna"></div>
+        </div>
+        <div class="robot-body">
+          <div class="robot-detail"></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <app-voice-recording-component
-    *ngIf="isListening"
-    (stopListening)="onStopListening()">
-  </app-voice-recording-component >
+  <!-- Expanded Chatbot View -->
+  <div class="expanded-chatbot" *ngIf="!isMinimized">
+    <div class="modern-header">
+      <div class="header-left">
+        <div class="logo">
+          <i class="material-icons">smart_toy</i>
+          <span>ChatBot</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <h2>Chat Assistant</h2>
+        <div class="status">
+          <span class="status-dot"></span>
+          <span>Online</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button class="header-btn close-btn" (click)="toggleChatbot()">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+    </div>
+
+    <div class="app-container">
+      <app-sidebar-component
+        [collapsed]="isSidebarCollapsed"
+        (toggleSidebar)="toggleSidebar()"
+        (changeView)="changeView($event)">
+      </app-sidebar-component>
+
+      <div class="main-content" [class.sidebar-collapsed]="isSidebarCollapsed" [class.sidebar-expanded]="!isSidebarCollapsed">
+        <div *ngIf="currentView === 'chat'" class="h-100">
+          <app-chat-area-component
+            [isListening]="isListening"
+            [session]="currentSession"
+            (startListening)="onStartListening()"
+            (stopListening)="onStopListening()"
+            (sessionUpdated)="onSessionUpdated($event)">
+          </app-chat-area-component>
+        </div>
+
+        <div *ngIf="currentView === 'history'" class="h-100">
+          <app-chat-history-component (sessionSelected)="onSessionSelected($event)">
+          </app-chat-history-component>
+        </div>
+        <!-- validator view removed -->
+      </div>
+
+
+  </div>
 </div>
