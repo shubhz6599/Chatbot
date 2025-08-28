@@ -39,7 +39,7 @@
           </div>
         </div>
         <div class="tooltip-side" *ngIf="showTooltip">
-          Hello! How can I assist you with file validation today?
+          Hello! How can I assist you  today?
         </div>
       </div>
     </div>
@@ -102,7 +102,18 @@
             {{ action.text }}
           </button>
         </div>
+<div *ngIf="message.hasErrors" class="download-button">
+  <button (click)="downloadFileWithErrors(message.fileName)" class="action-button">
+    <i class="material-icons">download</i> Download File with Error Highlights
+  </button>
+</div>
 
+<!-- In the file message section -->
+<!-- <div *ngIf="message.hasErrors" class="download-button">
+  <button (click)="downloadFileWithErrors(message.fileName)" class="action-button">
+    <i class="material-icons">download</i> Download with Errors
+  </button>
+</div> -->
         <div class="message-time">{{ getCurrentTime() }}</div>
       </div>
     </ng-container>

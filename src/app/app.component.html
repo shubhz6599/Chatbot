@@ -50,6 +50,7 @@
     <div class="app-container">
       <app-sidebar-component
         [collapsed]="isSidebarCollapsed"
+        [currentView]="currentView"
         (toggleSidebar)="toggleSidebar()"
         (changeView)="changeView($event)">
       </app-sidebar-component>

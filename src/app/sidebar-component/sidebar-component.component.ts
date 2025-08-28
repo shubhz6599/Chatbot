@@ -9,10 +9,12 @@ export class SidebarComponentComponent {
   @Input() collapsed: boolean = false;
   @Output() toggleSidebar = new EventEmitter<void>();
   @Output() changeView = new EventEmitter<string>();
+@Input() currentView: string = 'chat';
 
   // Removed ASN Validator menu
   menuItems = [
-    { icon: 'history', text: 'Chat History', view: 'history' }
+    { icon: 'question_answer', text: 'New Chat', view: 'newChat' },
+    { icon: 'history', text: 'History', view: 'history' }
   ];
 
   onSidebarClick(event: any) {

@@ -65,31 +65,31 @@ export class ChatHistoryComponentComponent implements OnInit {
     this.sessionSelected.emit(session);
   }
 
-  createNewChat() {
-    // Create a new empty session
-    const newSession = {
-      id: Date.now(),
-      title: 'New Chat',
-      messages: [
-        {
-          sender: 'bot',
-          text: 'Hello! How can I assist you today?',
-          timestamp: new Date()
-        }
-      ],
-      date: new Date(),
-      lastUpdated: new Date()
-    };
+  // createNewChat() {
+  //   // Create a new empty session
+  //   const newSession = {
+  //     id: Date.now(),
+  //     title: 'New Chat',
+  //     messages: [
+  //       {
+  //         sender: 'bot',
+  //         text: 'Hello! How can I assist you today?',
+  //         timestamp: new Date()
+  //       }
+  //     ],
+  //     date: new Date(),
+  //     lastUpdated: new Date()
+  //   };
 
-    // Add to history
-    this.sessionHistory.unshift(newSession);
+  //   // Add to history
+  //   this.sessionHistory.unshift(newSession);
 
-    // Save to localStorage
-    localStorage.setItem('chatHistory', JSON.stringify(this.sessionHistory));
+  //   // Save to localStorage
+  //   localStorage.setItem('chatHistory', JSON.stringify(this.sessionHistory));
 
-    // Emit the new session
-    this.sessionSelected.emit(newSession);
-  }
+  //   // Emit the new session
+  //   this.sessionSelected.emit(newSession);
+  // }
 
   formatDate(date: Date): string {
     const now = new Date();

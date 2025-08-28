@@ -10,7 +10,7 @@
     <div *ngFor="let item of menuItems"
          class="menu-item"
          (click)="onMenuItemClick(item.view, $event)"
-         [class.active]="item.view === 'chat'">
+        [class.active]="item.view === currentView">
       <i class="material-icons">{{ item.icon }}</i>
       <span *ngIf="!collapsed">{{ item.text }}</span>
     </div>

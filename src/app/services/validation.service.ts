@@ -7,112 +7,143 @@ import { Papa } from 'ngx-papaparse';
 export class ValidationService {
   constructor(private papa: Papa) {}
 
-  async validateASNFile(file: File): Promise<ValidationResult> {
-    return new Promise((resolve) => {
-      this.papa.parse(file, {
-        skipEmptyLines: true,
-        complete: (result) => {
-          const errors: string[] = [];
-          const data: any[] = result.data;
+// ... existing imports and service definition ...
 
-          if (!data || data.length <= 1) {
-            resolve({
-              isValid: false,
-              message: 'ASN file validation failed',
-              errors: ['File is empty or has no data rows'],
-              isProcessing: false
-            });
-            return;
+async validateASNFile(file: File): Promise<ValidationResult> {
+  return new Promise((resolve) => {
+    this.papa.parse(file, {
+      skipEmptyLines: true,
+      complete: (result) => {
+        const errors: string[] = [];
+        const data: any[] = result.data;
+
+        if (!data || data.length <= 1) {
+          resolve({
+            isValid: false,
+            message: 'ASN file validation failed',
+            errors: ['File is empty or has no data rows'],
+            isProcessing: false
+          });
+          return;
+        }
+
+        // --- Normalize headers ---
+        const headers: string[] = data[0].map((h: string) => h.trim().toLowerCase());
+        const headerMap: { [key: string]: number } = {};
+        headers.forEach((h, i) => (headerMap[h] = i));
+
+        const requiredHeaders: { [key: string]: string } = {
+          'po/sa number': 'PO/SA Number',
+          'excise amount': 'Excise Amount',
+          'lr no': 'LR No',
+          'veh no': 'Veh No',
+          'irn number': 'IRN Number'
+        };
+
+        // Check for missing headers
+        for (const key of Object.keys(requiredHeaders)) {
+          if (headerMap[key] === undefined) {
+            errors.push(`Missing required field: ${requiredHeaders[key]}`);
           }
+        }
 
-          // --- Normalize headers ---
-          const headers: string[] = data[0].map((h: string) => h.trim().toLowerCase());
-          const headerMap: { [key: string]: number } = {};
-          headers.forEach((h, i) => (headerMap[h] = i));
+        // Helper function to convert column index to Excel column letter
+        const toExcelColumn = (index: number): string => {
+          let result = '';
+          while (index >= 0) {
+            result = String.fromCharCode(65 + (index % 26)) + result;
+            index = Math.floor(index / 26) - 1;
+          }
+          return result;
+        };
 
-          const requiredHeaders: { [key: string]: string } = {
-            'po/sa number': 'PO/SA Number',
-            'excise amount': 'Excise Amount',
-            'lr no': 'LR No',
-            'veh no': 'Veh No',
-            'irn number': 'IRN Number'
-          };
+        // --- Validate each row ---
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          if (!row || row.length < headers.length) continue;
 
-          for (const key of Object.keys(requiredHeaders)) {
-            if (headerMap[key] === undefined) {
-              errors.push(`Missing required field: ${requiredHeaders[key]}`);
+          const rowErrors: string[] = [];
+          const rowNum = i + 1; // Excel row number (1-based)
+
+          // PO/SA Number must be 10 digits
+          const poColIndex = headerMap['po/sa number'];
+          if (poColIndex !== undefined) {
+            const poNumber = row[poColIndex];
+            if (poNumber && !/^\d{10}$/.test(poNumber.toString().trim())) {
+              const colLetter = toExcelColumn(poColIndex);
+              rowErrors.push(`Cell ${colLetter}${rowNum}: PO/SA Number must be exactly 10 digits (found: ${poNumber})`);
             }
           }
 
-          if (errors.length > 0) {
-            resolve({
-              isValid: false,
-              message: 'ASN file validation failed',
-              errors,
-              isProcessing: false
-            });
-            return;
+          // Excise Amount should be 0
+          const exciseColIndex = headerMap['excise amount'];
+          if (exciseColIndex !== undefined) {
+            const excise = row[exciseColIndex];
+            if (excise !== '0' && excise !== 0) {
+              const colLetter = toExcelColumn(exciseColIndex);
+              rowErrors.push(`Cell ${colLetter}${rowNum}: Excise Amount should be 0 (found: ${excise || 'empty'})`);
+            }
           }
 
-          // --- Validate each row ---
-          for (let i = 1; i < data.length; i++) {
-            const row = data[i];
-            if (!row || row.length < headers.length) continue;
-
-            // PO/SA Number must be 10 digits
-            const poNumber = row[headerMap['po/sa number']];
-            if (poNumber && !/^\d{10}$/.test(poNumber)) {
-              errors.push(`Row ${i + 1}: PO/SA Number must be exactly 10 digits (found: ${poNumber})`);
-            }
-
-            // Excise Amount should be 0
-            const excise = row[headerMap['excise amount']];
-            if (excise !== '0') {
-              errors.push(`Row ${i + 1}: Excise Amount should be 0 (found: ${excise || 'empty'})`);
-            }
-
-            // LR No: "*" if empty, else allow any non-"*"
-            const lr = row[headerMap['lr no']];
-            if (!lr || lr.trim() === '') {
-              errors.push(`Row ${i + 1}: LR No should be "*" when empty`);
+          // LR No: "*" if empty, else allow any non-"*"
+          const lrColIndex = headerMap['lr no'];
+          if (lrColIndex !== undefined) {
+            const lr = row[lrColIndex];
+            if (!lr || lr.toString().trim() === '') {
+              const colLetter = toExcelColumn(lrColIndex);
+              rowErrors.push(`Cell ${colLetter}${rowNum}: LR No should be "*" when empty`);
             } else if (lr === '*') {
               // ok only if intentionally empty
             }
+          }
 
-            // Veh No: "*" if empty, else allow any non-"*"
-            const veh = row[headerMap['veh no']];
-            if (!veh || veh.trim() === '') {
-              errors.push(`Row ${i + 1}: Veh No should be "*" when empty`);
+          // Veh No: "*" if empty, else allow any non-"*"
+          const vehColIndex = headerMap['veh no'];
+          if (vehColIndex !== undefined) {
+            const veh = row[vehColIndex];
+            if (!veh || veh.toString().trim() === '') {
+              const colLetter = toExcelColumn(vehColIndex);
+              rowErrors.push(`Cell ${colLetter}${rowNum}: Veh No should be "*" when empty`);
             } else if (veh === '*') {
               // ok only if intentionally empty
             }
+          }
 
-            // IRN Number must be 64 characters or empty
-            const irn = row[headerMap['irn number']];
-            if (irn && irn.length !== 64) {
-              errors.push(`Row ${i + 1}: IRN Number must be 64 characters (found length: ${irn.length})`);
+          // IRN Number must be 64 characters or empty
+          const irnColIndex = headerMap['irn number'];
+          if (irnColIndex !== undefined) {
+            const irn = row[irnColIndex];
+            if (irn && irn.toString().length !== 64) {
+              const colLetter = toExcelColumn(irnColIndex);
+              rowErrors.push(`Cell ${colLetter}${rowNum}: IRN Number must be 64 characters (found length: ${irn.toString().length})`);
             }
           }
 
-          const isValid = errors.length === 0;
-          resolve({
-            isValid,
-            message: isValid ? 'ASN file is valid ✅' : 'ASN file validation failed ❌',
-            errors,
-            isProcessing: false
-          });
-        },
-        error: (error) => {
-          resolve({
-            isValid: false,
-            message: 'Error parsing file',
-            errors: [error.message],
-            isProcessing: false
-          });
+          // Add all row errors to the main errors array
+          errors.push(...rowErrors);
         }
-      });
+
+        const isValid = errors.length === 0;
+        resolve({
+          isValid,
+          message: isValid ? 'ASN file is valid ✅' : 'ASN file validation failed ❌',
+          errors,
+          isProcessing: false
+        });
+      },
+      error: (error) => {
+        resolve({
+          isValid: false,
+          message: 'Error parsing file',
+          errors: [error.message],
+          isProcessing: false
+        });
+      }
     });
-  }
+  });
+}
+
+// ... rest of the code ...
 
   getValidationRules(): ValidationRule[] {
     return [
@@ -137,3 +168,4 @@ export interface ValidationRule {
   rule: string;
   example: string;
 }
+

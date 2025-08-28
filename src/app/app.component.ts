@@ -25,11 +25,19 @@ export class AppComponent {
 
   toggleSidebar() { this.isSidebarCollapsed = !this.isSidebarCollapsed; }
 
-  changeView(view: string) {
-    // allow only 'chat' and 'history'
-    this.currentView = (view === 'history') ? 'history' : 'chat';
-    if (this.isListening) this.isListening = false;
+changeView(view: string) {
+  if (view === 'newChat') {
+    this.createNewSession();   // create fresh session
+    this.currentView = 'chat'; // open chat window
+  } else if (view === 'history') {
+    this.currentView = 'history';
+  } else {
+    this.currentView = 'chat';
   }
+
+  if (this.isListening) this.isListening = false;
+}
+
 
   onStartListening() { this.isListening = true; }
   onStopListening() { this.isListening = false; }
@@ -48,6 +56,8 @@ export class AppComponent {
   }
 
   createNewSession() {
+    console.log(this.sessionHistory);
+
     const newSession = {
       id: Date.now(),
       title: 'New Chat',

@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, OnChanges } 
 import { SpeechService } from '../services/speech.service';
 import { Subscription } from 'rxjs';
 import { ValidationResult, ValidationService } from '../services/validation.service';
-
+import * as XLSX from 'xlsx';
 @Component({
   selector: 'app-chat-area-component',
   templateUrl: './chat-area-component.component.html',
@@ -19,12 +19,14 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   userInput: string = '';
   uploadedFiles: File[] = [];
 showVoiceAnim:boolean = false;
+
+downloadLinks: {[fileName: string]: string} = {};
   // quick suggestions
   initialQuestions = [
-    'What is your name?',
+    'How can I change my email/Phone',
     'How can I reset my password?',
-    'Tell me about your services.',
-    'What is your pricing?'
+    'How can I validate asn file',
+    // 'What is your pricing?'
   ];
 
   // dynamic suggestions (speech)
@@ -331,17 +333,34 @@ this.showVoiceAnim =true
         if (fileMessageIndex !== -1) {
           this.messages[fileMessageIndex].isValid = validationResult.isValid;
           this.messages[fileMessageIndex].isProcessing = false;
+
+          // Format errors with line breaks for better readability
+          const formattedErrors = validationResult.errors && validationResult.errors.length > 0
+            ? validationResult.errors.join('\n')
+            : '';
+
           this.messages[fileMessageIndex].validationResult = validationResult.isValid
             ? `✓ ${file.name} is a valid ${fileType} file.`
-            : `✗ ${file.name} is not a valid ${fileType} file.${validationResult.errors?.length ? ' Errors: ' + validationResult.errors.join(', ') : ''}`;
+            : `✗ ${file.name} is not a valid ${fileType} file.\n${formattedErrors}`;
         }
+
+        // Create enhanced file with error highlights if there are errors
+        if (!validationResult.isValid && validationResult.errors && validationResult.errors.length > 0) {
+          this.createEnhancedFileWithErrors(file, validationResult.errors);
+        }
+
+        // Format the error message with proper line breaks
+        const errorMessage = validationResult.isValid
+          ? `The file "${file.name}" is a valid ${fileType} file.`
+          : `The file "${file.name}" failed validation:\n${(validationResult.errors || []).join('\n')}`;
 
         this.messages.push({
           sender: 'bot',
-          text: validationResult.isValid
-            ? `The file "${file.name}" is a valid ${fileType} file.`
-            : `The file "${file.name}" failed validation: ${validationResult.message}. ${validationResult.errors?.join(' ') || ''}`,
-          timestamp: new Date()
+          text: errorMessage,
+          timestamp: new Date(),
+          // Add download link if there are errors
+          hasErrors: !validationResult.isValid,
+          fileName: file.name
         });
         this.updateSession();
       } catch (error: any) {
@@ -369,6 +388,138 @@ this.showVoiceAnim =true
       if (c) c.scrollTop = c.scrollHeight;
     }, 0);
   }
+
+  // Create enhanced Excel file with error highlights
+  createEnhancedFileWithErrors(file: File, errors: string[]) {
+    try {
+      // Check if XLSX is available
+      if (typeof XLSX === 'undefined') {
+        console.error('XLSX library is not available');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+          // Parse the CSV to get the raw data
+          const rawData:any = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          // Add error information to the data
+          this.markErrorsInData(rawData, errors);
+
+          // Create a new worksheet with error highlights
+          const newWorksheet = XLSX.utils.aoa_to_sheet(rawData);
+
+          // Apply styling to error cells
+          this.applyErrorStyles(newWorksheet, errors);
+
+          // Create new workbook
+          const newWorkbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Validation Results');
+
+          // Generate Excel file
+          const excelBuffer = XLSX.write(newWorkbook, { bookType: 'xlsx', type: 'array' });
+          const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+          // Create download link
+          this.downloadLinks[file.name] = URL.createObjectURL(blob);
+        } catch (error) {
+          console.error('Error creating enhanced file:', error);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error('Error in createEnhancedFileWithErrors:', error);
+    }
+  }
+
+  // Mark errors in the data
+  markErrorsInData(data: any[], errors: string[]) {
+    if (!data || data.length === 0) return;
+
+    // Add header for error column if it doesn't exist
+    if (data[0].indexOf('Validation Errors') === -1) {
+      data[0].push('Validation Errors');
+    }
+
+    // Process each row to add error information
+    for (let i = 1; i < data.length; i++) {
+      const rowErrors = errors.filter(error => {
+        const match = error.match(/Cell ([A-Z]+)(\d+):/);
+        if (match) {
+          const rowNum = parseInt(match[2], 10);
+          return rowNum === i + 1; // +1 because Excel rows are 1-indexed and our array is 0-indexed
+        }
+        return false;
+      });
+
+      // Add errors to the row
+      if (data[i].length < data[0].length) {
+        // Pad the row with empty cells if needed
+        while (data[i].length < data[0].length - 1) {
+          data[i].push('');
+        }
+      }
+
+      data[i].push(rowErrors.map(e => e.replace(/Cell [A-Z]+\d+:\s*/, '')).join('; '));
+    }
+  }
+
+  // Apply styles to error cells
+  applyErrorStyles(worksheet: any, errors: string[]) {
+    if (!worksheet || !worksheet['!ref']) return;
+
+    // Define the error style
+    const errorStyle = {
+      fill: { fgColor: { rgb: "FFFF0000" } }, // Red background
+      font: { color: { rgb: "FFFFFFFF" }, bold: true } // White bold text
+    };
+
+    // Apply styles to cells with errors
+    errors.forEach(error => {
+      const match = error.match(/Cell ([A-Z]+)(\d+):/);
+      if (match) {
+        const col = match[1];
+        const row = match[2];
+        const cellAddress = `${col}${row}`;
+
+        // Apply style to the error cell
+        if (!worksheet[cellAddress]) worksheet[cellAddress] = { t: 's', v: '' };
+        worksheet[cellAddress].s = errorStyle;
+      }
+    });
+
+    // Style the error column header
+    try {
+      const lastCell = worksheet['!ref'].split(':')[1];
+      const errorCol = String.fromCharCode(65 + lastCell.charCodeAt(0) - 65);
+      const headerCell = `${errorCol}1`;
+      if (!worksheet[headerCell]) worksheet[headerCell] = { t: 's', v: 'Validation Errors' };
+      worksheet[headerCell].s = {
+        fill: { fgColor: { rgb: "FFFFCC00" } }, // Yellow background
+        font: { bold: true }
+      };
+    } catch (error) {
+      console.error('Error styling header:', error);
+    }
+  }
+
+  // Download file with error highlights
+  downloadFileWithErrors(fileName: string) {
+    if (this.downloadLinks[fileName]) {
+      const link = document.createElement('a');
+      link.href = this.downloadLinks[fileName];
+      link.download = fileName.replace('.csv', '_with_errors.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
+
 
   // upload handling
   uploadFile(event: any) {
@@ -430,3 +581,4 @@ this.showVoiceAnim =true
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }
+
