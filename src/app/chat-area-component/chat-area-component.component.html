@@ -100,7 +100,17 @@
           {{ message.text }}
         </div>
 
+        <div *ngIf="message.sender === 'bot' && i === messages.length -1" class="action-buttons">
 
+          <button class="icon-button speak" (click)="speak(message.text)">
+            <i class="material-icons">volume_up</i>
+          </button>
+
+          <button class="icon-button stop" (click)="stop()">
+            <i class="material-icons">volume_off</i>
+          </button>
+
+        </div>
 
 
         <!-- Actions -->

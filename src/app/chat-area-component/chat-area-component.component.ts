@@ -309,106 +309,132 @@ sendMessage() {
 
 
   // validation (ASN still supported here)
-  async validateFiles(fileType: string = 'ASN') {
-    if (this.uploadedFiles.length === 0) {
-      this.messages.push({
-        sender: 'bot',
-        text: 'No files uploaded. Please upload files to validate.',
-        timestamp: new Date()
-      });
-      this.updateSession();
-      return;
-    }
-
-    // show typing
-    this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
+async validateFiles(fileType: string = 'ASN') {
+  if (this.uploadedFiles.length === 0) {
+    this.messages.push({
+      sender: 'bot',
+      text: 'No files uploaded. Please upload files to validate.',
+      timestamp: new Date()
+    });
     this.updateSession();
+    return;
+  }
 
-    for (const file of this.uploadedFiles) {
-      try {
-        // locate UI tile
-        const fileMessageIndex = this.messages.findIndex(msg => msg.type === 'file' && msg.fileName === file.name);
+  // show typing
+  this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
+  this.updateSession();
 
-        // switch tile into "Validating..." state
+  for (const file of this.uploadedFiles) {
+    try {
+      // ✅ Step 1: Validate file extension
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const validExts = ['csv', 'xls', 'xlsx'];
+
+      if (!ext || !validExts.includes(ext)) {
+        // update file tile if present
+        const fileMessageIndex = this.messages.findIndex(
+          msg => msg.type === 'file' && msg.fileName === file.name
+        );
         if (fileMessageIndex !== -1) {
-          this.messages[fileMessageIndex].isProcessing = true;
-          this.messages[fileMessageIndex].uploading = false; // ensure not in upload state
-          this.messages[fileMessageIndex].uploaded = true;
-          this.messages[fileMessageIndex].validationResult = 'Validating...';
-          this.updateSession();
-        }
-
-        let validationResult: ValidationResult;
-
-        if (fileType === 'ASN') {
-          validationResult = await this.validationService.validateASNFile(file);
-        } else {
-          validationResult = {
-            isValid: false,
-            message: `Unknown file type: ${fileType}`,
-            errors: [`Validation not supported for ${fileType} files`],
-            isProcessing: false
-          };
-        }
-
-        if (fileMessageIndex !== -1) {
-          this.messages[fileMessageIndex].isValid = validationResult.isValid;
+          this.messages[fileMessageIndex].isValid = false;
           this.messages[fileMessageIndex].isProcessing = false;
-
-          // Format errors with line breaks for better readability
-          const formattedErrors = validationResult.errors && validationResult.errors.length > 0
-            ? validationResult.errors.join('\n')
-            : '';
-
-          this.messages[fileMessageIndex].validationResult = validationResult.isValid
-            ? `✓ ${file.name} is a valid ${fileType} file.`
-            : `✗ ${file.name} is not a valid ${fileType} file.\n${formattedErrors}`;
+          this.messages[fileMessageIndex].validationResult =
+            `✗ Invalid file type for ASN validation. Please upload CSV, XLS, or XLSX only.`;
         }
-
-        // Create enhanced file with error highlights if there are errors
-        if (!validationResult.isValid && validationResult.errors && validationResult.errors.length > 0) {
-          this.createEnhancedFileWithErrors(file, validationResult.errors);
-        }
-
-        // Format the error message with proper line breaks
-        const errorMessage = validationResult.isValid
-          ? `The file "${file.name}" is a valid ${fileType} file.`
-          : `The file "${file.name}" failed validation:\n${(validationResult.errors || []).join('\n')}`;
 
         this.messages.push({
           sender: 'bot',
-          text: errorMessage,
-          timestamp: new Date(),
-          // Add download link if there are errors
-          hasErrors: !validationResult.isValid,
-          fileName: file.name
-        });
-        this.updateSession();
-      } catch (error: any) {
-        const idx = this.messages.findIndex(msg => msg.type === 'file' && msg.fileName === file.name);
-        if (idx !== -1) {
-          this.messages[idx].isValid = false;
-          this.messages[idx].isProcessing = false;
-          this.messages[idx].validationResult = `Error: ${error?.message || 'Unknown error'}`;
-        }
-        this.messages.push({
-          sender: 'bot',
-          text: `Error validating file "${file.name}": ${error?.message || 'Unknown error'}`,
+          text: `The file "${file.name}" is not a valid type.
+                 For ASN validation, please upload a **CSV, XLS, or XLSX** file.`,
           timestamp: new Date()
         });
         this.updateSession();
+        continue; // ⬅ Skip further validation for this file
       }
+
+      // ✅ Step 2: Locate UI tile
+      const fileMessageIndex = this.messages.findIndex(
+        msg => msg.type === 'file' && msg.fileName === file.name
+      );
+
+      if (fileMessageIndex !== -1) {
+        this.messages[fileMessageIndex].isProcessing = true;
+        this.messages[fileMessageIndex].uploading = false;
+        this.messages[fileMessageIndex].uploaded = true;
+        this.messages[fileMessageIndex].validationResult = 'Validating...';
+        this.updateSession();
+      }
+
+      // ✅ Step 3: Perform ASN validation
+      let validationResult: ValidationResult;
+      if (fileType === 'ASN') {
+        validationResult = await this.validationService.validateASNFile(file);
+      } else {
+        validationResult = {
+          isValid: false,
+          message: `Unknown file type: ${fileType}`,
+          errors: [`Validation not supported for ${fileType} files`],
+          isProcessing: false
+        };
+      }
+
+      if (fileMessageIndex !== -1) {
+        this.messages[fileMessageIndex].isValid = validationResult.isValid;
+        this.messages[fileMessageIndex].isProcessing = false;
+
+        const formattedErrors =
+          validationResult.errors && validationResult.errors.length > 0
+            ? validationResult.errors.join('\n')
+            : '';
+
+        this.messages[fileMessageIndex].validationResult = validationResult.isValid
+          ? `✓ ${file.name} is a valid ${fileType} file.`
+          : `✗ ${file.name} is not a valid ${fileType} file.\n${formattedErrors}`;
+      }
+
+      // Create enhanced file if invalid
+      if (!validationResult.isValid && validationResult.errors && validationResult.errors.length > 0) {
+        this.createEnhancedFileWithErrors(file, validationResult.errors);
+      }
+
+      const errorMessage = validationResult.isValid
+        ? `The file "${file.name}" is a valid ${fileType} file.`
+        : `The file "${file.name}" failed validation:\n${(validationResult.errors || []).join('\n')}`;
+
+      this.messages.push({
+        sender: 'bot',
+        text: errorMessage,
+        timestamp: new Date(),
+        hasErrors: !validationResult.isValid,
+        fileName: file.name
+      });
+      this.updateSession();
+    } catch (error: any) {
+      const idx = this.messages.findIndex(msg => msg.type === 'file' && msg.fileName === file.name);
+      if (idx !== -1) {
+        this.messages[idx].isValid = false;
+        this.messages[idx].isProcessing = false;
+        this.messages[idx].validationResult = `Error: ${error?.message || 'Unknown error'}`;
+      }
+      this.messages.push({
+        sender: 'bot',
+        text: `Error validating file "${file.name}": ${error?.message || 'Unknown error'}`,
+        timestamp: new Date()
+      });
+      this.updateSession();
     }
-
-    // remove typing
-    this.messages = this.messages.filter(m => !m.typing);
-    this.updateSession();
-
-    setTimeout(() => {
-      const c = document.querySelector('.chat-messages') as HTMLElement | null;
-      if (c) c.scrollTop = c.scrollHeight;
-    }, 0);
   }
+
+  // remove typing
+  this.messages = this.messages.filter(m => !m.typing);
+  this.updateSession();
+
+  setTimeout(() => {
+    const c = document.querySelector('.chat-messages') as HTMLElement | null;
+    if (c) c.scrollTop = c.scrollHeight;
+  }, 0);
+}
+
 
   // Create enhanced Excel file with error highlights
   createEnhancedFileWithErrors(file: File, errors: string[]) {
@@ -602,6 +628,12 @@ sendMessage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
+    speak(text: string) {
+    this.tts.speak(text);
+  }
 
+  stop() {
+    this.tts.stop();
+  }
 }
 
