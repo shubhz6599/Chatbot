@@ -3,6 +3,8 @@ import { SpeechService } from '../services/speech.service';
 import { Subscription } from 'rxjs';
 import { ValidationResult, ValidationService } from '../services/validation.service';
 import * as XLSX from 'xlsx';
+import { ChatService } from '../services/chat.service';
+import { TextToSpeechService } from '../services/text-to-speech.service';
 @Component({
   selector: 'app-chat-area-component',
   templateUrl: './chat-area-component.component.html',
@@ -42,7 +44,7 @@ downloadLinks: {[fileName: string]: string} = {};
 
   private speechSubscription: Subscription | null = null;
 
-  constructor(private speechService: SpeechService, private validationService: ValidationService) {}
+  constructor(private speechService: SpeechService, private validationService: ValidationService,private chatService: ChatService, private tts: TextToSpeechService) {}
 
   ngOnInit() {
     if (this.session && this.session.messages) {
@@ -230,62 +232,81 @@ this.showVoiceAnim =true
   }
 
   // main send
-  sendMessage() {
-    if (!this.userInput.trim() || this.isWaitingForBot) return;
+sendMessage() {
+  if (!this.userInput.trim() && this.uploadedFiles.length === 0) return; // nothing to send
+  if (this.isWaitingForBot) return;
 
-    const userMessageLower = this.userInput.toLowerCase();
-    // push user message
+  const userMessageLower = this.userInput.toLowerCase();
+
+  // show user message
+  if (this.userInput.trim()) {
     this.messages.push({ sender: 'user', text: this.userInput, timestamp: new Date() });
-    this.updateSession();
+  }
+  this.updateSession();
 
-    // detect validation intent
-    if ((userMessageLower.includes('validate') && userMessageLower.includes('asn')) || (userMessageLower.includes('valid') && userMessageLower.includes('asn'))) {
-      let fileType = 'ASN';
-      if (userMessageLower.includes('vendor')) fileType = 'Vendor';
-      else if (userMessageLower.includes('asn')) fileType = 'ASN';
+  // detect ASN validation intent
+  if ((userMessageLower.includes('validate') && userMessageLower.includes('asn')) ||
+      (userMessageLower.includes('valid') && userMessageLower.includes('asn'))) {
+    let fileType = 'ASN';
+    if (userMessageLower.includes('vendor')) fileType = 'Vendor';
 
-      this.userInput = '';
-      this.isWaitingForBot = true;
-      this.validateFiles(fileType).finally(() => {
-        // make sure UI re-enables after validation completes
-        this.isWaitingForBot = false;
-        this.updateSession();
-      });
-      return;
-    }
-
-    // normal chat bot simulation
-    const sentText = this.userInput;
     this.userInput = '';
-    this.dynamicSuggestions = [];
     this.isWaitingForBot = true;
+    this.validateFiles(fileType).finally(() => {
+      this.isWaitingForBot = false;
+      this.updateSession();
+    });
+    return;
+  }
 
-    // typing indicator
-    this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
-    this.updateSession();
+  // --- Otherwise, QnA API call ---
+  const sentText = this.userInput;
+  const files = [...this.uploadedFiles]; // copy array
 
-    setTimeout(() => {
+  this.userInput = '';
+  this.dynamicSuggestions = [];
+  this.isWaitingForBot = true;
+
+  // Typing indicator
+  this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
+  this.updateSession();
+
+  this.chatService.askQuestion(sentText, files).subscribe({
+    next: (res) => {
       // remove typing indicator
       this.messages = this.messages.filter(m => !m.typing);
 
-      const hasActions = this.shouldHaveActions(sentText);
       const botMessage: any = {
         sender: 'bot',
-        text: `I understand you asked about "${sentText}". How can I help you with that?`,
-        timestamp: new Date()
+        text: res?.answer || "Sorry, I couldn't find an answer.",
+        timestamp: new Date(),
+        debug: res?.debug,
+        mode: res?.mode
       };
-      if (hasActions) botMessage.actions = this.getActionsForMessage(sentText);
 
       this.messages.push(botMessage);
-      this.isWaitingForBot = false; // ✅ re-enable input after bot reply
+      this.isWaitingForBot = false;
       this.updateSession();
 
+      // auto-scroll to bottom
       setTimeout(() => {
         const c = document.querySelector('.chat-messages') as HTMLElement | null;
         if (c) c.scrollTop = c.scrollHeight;
       }, 0);
-    }, 1200);
-  }
+    },
+    error: (err) => {
+      this.messages = this.messages.filter(m => !m.typing);
+      this.messages.push({
+        sender: 'bot',
+        text: 'Error fetching answer. Please try again.',
+        timestamp: new Date()
+      });
+      this.isWaitingForBot = false;
+      this.updateSession();
+    }
+  });
+}
+
 
   // validation (ASN still supported here)
   async validateFiles(fileType: string = 'ASN') {
@@ -580,5 +601,7 @@ this.showVoiceAnim =true
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
+
+
 }
 

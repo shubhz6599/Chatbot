@@ -46,14 +46,35 @@ changeView(view: string) {
     this.currentSession = session;
     this.currentView = 'chat';
   }
-
-  onSessionUpdated(updatedSession: any) {
-    this.currentSession = updatedSession;
-    const index = this.sessionHistory.findIndex(s => s.id === updatedSession.id);
-    if (index !== -1) this.sessionHistory[index] = updatedSession;
-    else this.sessionHistory.unshift(updatedSession);
-    this.saveSessionHistory();
+onSessionUpdated(updatedSession: any) {
+  // Update title only if it's still default "New Chat"
+  if (updatedSession.title === 'New Chat') {
+    const firstUserMsg = updatedSession.messages.find((msg: any) => msg.sender === 'user');
+    if (firstUserMsg) {
+      if (firstUserMsg.text) {
+        // Text message
+        updatedSession.title = firstUserMsg.text.length > 30
+          ? firstUserMsg.text.substring(0, 30) + '...'
+          : firstUserMsg.text;
+      } else if (firstUserMsg.fileName) {
+        // File upload
+        updatedSession.title = firstUserMsg.fileName;
+      }
+    }
   }
+
+  this.currentSession = updatedSession;
+  const index = this.sessionHistory.findIndex(s => s.id === updatedSession.id);
+  if (index !== -1) {
+    this.sessionHistory[index] = updatedSession;
+  } else {
+    this.sessionHistory.unshift(updatedSession);
+  }
+  this.saveSessionHistory();
+}
+
+
+
 
   createNewSession() {
     console.log(this.sessionHistory);

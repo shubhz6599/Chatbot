@@ -9,6 +9,8 @@ import { ChatHistoryComponentComponent } from './chat-history-component/chat-his
 import { FormsModule } from '@angular/forms';
 import { ValidationService } from './services/validation.service';
 import { Papa } from 'ngx-papaparse';
+import { ChatService } from './services/chat.service';
+import { HttpClientModule } from '@angular/common/http';
 @NgModule({
   declarations: [
     AppComponent,
@@ -20,9 +22,10 @@ import { Papa } from 'ngx-papaparse';
     BrowserModule,
     AppRoutingModule,
     FormsModule,
+    HttpClientModule
   ],
   providers: [ValidationService,
-    Papa],
+    Papa, ChatService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

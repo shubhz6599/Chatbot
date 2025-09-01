@@ -39,14 +39,15 @@
           </div>
         </div>
         <div class="tooltip-side" *ngIf="showTooltip">
-          Hello! How can I assist you  today?
+          Hello! How can I assist you today?
         </div>
       </div>
     </div>
 
     <!-- messages -->
     <ng-container *ngFor="let message of messages; let i = index">
-      <div class="message" [class.user-message]="message.sender === 'user'" [class.bot-message]="message.sender === 'bot'">
+      <div class="message" [class.user-message]="message.sender === 'user'"
+        [class.bot-message]="message.sender === 'bot'">
         <!-- FILE tile -->
         <div *ngIf="message.type === 'file'" class="file-message">
           <div class="file-info">
@@ -56,10 +57,9 @@
               <span class="file-size">{{ message.fileSize }}</span>
             </div>
 
-            <div class="file-status"
-                 [class.valid]="message.isValid === true"
-                 [class.invalid]="message.isValid === false"
-                 [class.processing]="message.isProcessing || message.uploading">
+            <div class="file-status" [class.valid]="message.isValid === true"
+              [class.invalid]="message.isValid === false"
+              [class.processing]="message.isProcessing || message.uploading">
 
               <div class="status-content">
                 <div class="processing-spinner" *ngIf="message.uploading || message.isProcessing">
@@ -67,15 +67,19 @@
                 </div>
 
                 <i class="material-icons" *ngIf="message.isValid === true">check_circle</i>
-                <i class="material-icons" *ngIf="message.isValid === false && !(message.uploading || message.isProcessing)">error</i>
+                <i class="material-icons"
+                  *ngIf="message.isValid === false && !(message.uploading || message.isProcessing)">error</i>
 
                 <span>
                   <!-- upload/validate status text -->
                   <ng-container *ngIf="message.uploading">Uploading...</ng-container>
                   <ng-container *ngIf="!message.uploading && message.isProcessing">Validating...</ng-container>
-                  <ng-container *ngIf="!message.uploading && !message.isProcessing && message.isValid === true">Valid</ng-container>
-                  <ng-container *ngIf="!message.uploading && !message.isProcessing && message.isValid === false">Invalid</ng-container>
-                  <ng-container *ngIf="!message.uploading && !message.isProcessing && message.isValid === null && message.uploaded">Uploaded</ng-container>
+                  <ng-container
+                    *ngIf="!message.uploading && !message.isProcessing && message.isValid === true">Valid</ng-container>
+                  <ng-container
+                    *ngIf="!message.uploading && !message.isProcessing && message.isValid === false">Invalid</ng-container>
+                  <ng-container
+                    *ngIf="!message.uploading && !message.isProcessing && message.isValid === null && message.uploaded">Uploaded</ng-container>
                 </span>
               </div>
             </div>
@@ -96,20 +100,24 @@
           {{ message.text }}
         </div>
 
+
+
+
         <!-- Actions -->
         <div *ngIf="message.actions && message.sender === 'bot'" class="action-buttons">
-          <button *ngFor="let action of message.actions" class="action-button" (click)="handleAction(action.action, message.text)">
+          <button *ngFor="let action of message.actions" class="action-button"
+            (click)="handleAction(action.action, message.text)">
             {{ action.text }}
           </button>
         </div>
-<div *ngIf="message.hasErrors" class="download-button">
-  <button (click)="downloadFileWithErrors(message.fileName)" class="action-button">
-    <i class="material-icons">download</i> Download File with Error Highlights
-  </button>
-</div>
+        <div *ngIf="message.hasErrors" class="download-button">
+          <button (click)="downloadFileWithErrors(message.fileName)" class="action-button">
+            <i class="material-icons">download</i> Download File with Error Highlights
+          </button>
+        </div>
 
-<!-- In the file message section -->
-<!-- <div *ngIf="message.hasErrors" class="download-button">
+        <!-- In the file message section -->
+        <!-- <div *ngIf="message.hasErrors" class="download-button">
   <button (click)="downloadFileWithErrors(message.fileName)" class="action-button">
     <i class="material-icons">download</i> Download with Errors
   </button>
@@ -142,12 +150,14 @@
     <!-- File upload -->
     <label class="file-upload-btn" [class.has-file]="uploadedFiles.length > 0">
       <i class="material-icons">{{ uploadedFiles.length > 0 ? 'attachment' : 'attach_file' }}</i>
-      <input #fileInput type="file" class="file-input" (change)="uploadFile($event)" accept=".csv,.xlsx,.xls" multiple [disabled]="isWaitingForBot">
+      <input #fileInput type="file" class="file-input" (change)="uploadFile($event)" accept=".csv,.xlsx,.xls" multiple
+        [disabled]="isWaitingForBot">
       <span class="file-count" *ngIf="uploadedFiles.length > 0">{{ uploadedFiles.length }}</span>
     </label>
 
     <!-- Mic -->
-    <button class="mic-button" (click)="onStartListening()" *ngIf="!isListening && !isProcessingSpeech" [disabled]="isWaitingForBot">
+    <button class="mic-button" (click)="onStartListening()" *ngIf="!isListening && !isProcessingSpeech"
+      [disabled]="isWaitingForBot">
       <i class="material-icons">mic</i>
     </button>
 
@@ -163,7 +173,8 @@
       <i class="material-icons">stop</i>
     </button>
 
-    <input [(ngModel)]="userInput" placeholder="Type your message..." (keyup.enter)="sendMessage()" [disabled]="isWaitingForBot">
+    <input [(ngModel)]="userInput" placeholder="Type your message..." (keyup.enter)="sendMessage()"
+      [disabled]="isWaitingForBot">
 
     <button class="send-button" (click)="sendMessage()" [disabled]="isWaitingForBot || !userInput.trim()">
       <i class="material-icons">send</i>
@@ -174,7 +185,7 @@
 </div>
 
 <!-- voice -->
- <!-- voice-recording.component.html -->
+<!-- voice-recording.component.html -->
 <div class="voice-recording-overlay" *ngIf="showVoiceAnim">
   <div class="recording-container">
     <div class="pulse-circle">
