@@ -1,92 +1,96 @@
+/* ========= THEME TOKENS (reused) ========= */
+.ai-theme {
+  --brand: #e31837;
+  --brand-600: #c4142d;
+  --bg: #ffffff;
+  --card: rgba(255,255,255,0.7);
+  --border: rgba(0,0,0,0.08);
+  --text: #2a2e33;
+  --muted: #6c757d;
+  --shadow: 0 10px 30px rgba(0,0,0,0.08);
+  --glass-blur: saturate(180%) blur(14px);
+  --glow: 0 0 0px rgba(227,24,55,0), 0 0 14px rgba(227,24,55,.25), 0 0 24px rgba(227,24,55,.2);
+  --gradient-bg: radial-gradient(900px 500px at -10% 20%, rgba(227,24,55,.10), transparent 60%);
+}
+.ai-theme.theme-red-black {
+  --bg: #0f1114;
+  --card: rgba(16,18,22,0.7);
+  --border: rgba(255,255,255,0.06);
+  --text: #ecf0f3;
+  --muted: #b5bcc5;
+  --shadow: 0 20px 50px rgba(0,0,0,0.45);
+  --glow: 0 0 0px rgba(227,24,55,0), 0 0 18px rgba(227,24,55,.35), 0 0 36px rgba(227,24,55,.25);
+  --gradient-bg: radial-gradient(900px 500px at -10% 20%, rgba(227,24,55,.16), transparent 60%);
+}
+
+/* ========= CONTAINER ========= */
 .chat-history {
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  padding: 20px;
+  background: var(--bg);
+  background-image: var(--gradient-bg);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 16px;
   height: 100%;
   display: flex;
   flex-direction: column;
+  border: 1px solid var(--border);
 }
 
 /* Header */
 .history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #f1f1f1;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
 }
-
 .history-header h2 {
-  margin: 0;
-  color: #e31837; /* brand red */
-  font-weight: 700;
-  font-size: 1.2rem;
+  margin: 0; color: var(--brand); font-weight: 800; font-size: 1.08rem; letter-spacing: .3px;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.02);
 }
-
 
 /* Session List */
 .history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 4px;
+  display: flex; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; padding-right: 4px;
 }
 
 .session-item {
-  padding: 14px;
-  border: 1px solid #f1f1f1;
-  border-radius: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
-  background: #fff;
+  transition: all .18s ease;
+  background: var(--card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  position: relative;
 }
-
 .session-item:hover {
-  border-color: #e31837;
-  background-color: #fff5f6;
+  transform: translateY(-1px);
+  border-color: rgba(227,24,55,.45);
+  box-shadow: var(--glow);
 }
-
 .session-item.current {
-  border-color: #e31837;
-  background-color: rgba(227, 24, 55, 0.06);
-  box-shadow: 0 2px 8px rgba(227, 24, 55, 0.15);
+  border-color: var(--brand);
+  background: linear-gradient( to bottom right, rgba(227,24,55,.06), transparent );
+  box-shadow: 0 8px 24px rgba(227,24,55,.15);
 }
 
-/* Session Title */
 .session-title {
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: #e31837;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  font-weight: 700; margin-bottom: 6px; color: var(--brand);
+  display: flex; justify-content: space-between; align-items: center; letter-spacing: .2px;
 }
 
-/* Badge */
 .current-badge {
-  font-size: 0.7rem;
-  background-color: #e31837;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 10px;
+  font-size: 0.68rem; background: linear-gradient(135deg, var(--brand) 0%, var(--brand-600) 100%);
+  color: white; padding: 2px 8px; border-radius: 999px;
 }
 
-/* Preview */
 .session-preview {
-  margin-bottom: 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #6c757d;
-  font-size: 0.9rem;
+  margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--muted); font-size: 0.9rem;
 }
 
-/* Date */
-.session-date {
-  font-size: 0.8rem;
-  color: #999;
-}
+.session-date { font-size: 0.8rem; color: var(--muted); }
+
+/* scrollbar */
+.history-list::-webkit-scrollbar { width: 6px; }
+.history-list::-webkit-scrollbar-thumb { background: linear-gradient(var(--brand), var(--brand-600)); border-radius: 8px; }
