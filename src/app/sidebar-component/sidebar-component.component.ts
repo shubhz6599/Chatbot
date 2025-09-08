@@ -14,7 +14,9 @@ export class SidebarComponentComponent {
   // Removed ASN Validator menu
   menuItems = [
     { icon: 'question_answer', text: 'New Chat', view: 'newChat' },
-    { icon: 'history', text: 'History', view: 'history' }
+    { icon: 'history', text: 'History', view: 'history' },
+    { icon: 'phone_in_talk', text: 'Call Assistant', view: 'callAssistant' },
+    { icon: 'live_help', text: "FAQ's", view: 'faqs' }
   ];
 
   onSidebarClick(event: any) {

@@ -27,13 +27,13 @@
     <div class="modern-header">
       <div class="header-left">
         <div class="logo">
-          <i class="material-icons">smart_toy</i>
+          <i class="material-icons">android</i>
           <span>CARA 2.0</span>
         </div>
       </div>
 
       <div class="header-center">
-        <h2>Chat Assistant</h2>
+        <!-- <h2>Chat Assistant</h2> -->
         <div class="status">
           <span class="status-dot"></span>
           <span>Online</span>
@@ -70,6 +70,16 @@
           <app-chat-history-component (sessionSelected)="onSessionSelected($event)">
           </app-chat-history-component>
         </div>
+
+        <div *ngIf="currentView === 'callAssistant'" class="h-100">
+          <app-call-assistant></app-call-assistant>
+        </div>
+
+        <div *ngIf="currentView === 'faqs'" class="h-100">
+          <app-faqs ></app-faqs>
+        </div>
+
+
         <!-- validator view removed -->
       </div>
 

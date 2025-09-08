@@ -3,7 +3,7 @@
 /* Header – red theme */
 .modern-header {
   height: 70px;
-  background: linear-gradient(135deg, #b51229  0%, #e31837  100%);
+  background: transparent;
   display: flex; justify-content: space-between; align-items: center;
   padding: 0 40px; box-shadow: 0 2px 15px rgba(0,0,0,0.1);
   position: relative; z-index: 1000;
@@ -12,11 +12,11 @@
 .header-center { flex: 2; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .header-right { flex: 1; display:flex; justify-content:flex-end; }
 
-.logo { display:flex; align-items:center; gap:10px; color:white; font-weight:600; font-size:1.2rem; }
+.logo { display:flex; align-items:center; gap:10px; color:#e31837; font-weight:600; font-size:1.2rem; }
 .logo i { font-size:28px; }
-.modern-header h2 { margin:0; color:white; font-size:1.4rem; font-weight:500; }
+.modern-header h2 { margin:0; color:#e31837; font-size:1.4rem; font-weight:500; }
 
-.status { display:flex; align-items:center; gap:8px; color: rgba(255,255,255,0.9); font-size:0.9rem; margin-top:4px; }
+.status { display:flex; align-items:center; gap:8px; color: #e31837; font-size:0.9rem; margin-top:4px; }
 .status-dot { width:10px; height:10px; background-color:#4ade80; border-radius:50%; animation: blink 2s infinite; }
 @keyframes blink {
   0% { opacity:1; box-shadow:0 0 0 0 rgba(74,222,128,0.7); }
@@ -26,7 +26,7 @@
 
 .header-btn {
   width: 40px; height: 40px; border-radius: 50%; border: none;
-  background: rgba(255,255,255,0.15); color: white; display:flex; align-items:center; justify-content:center;
+  background: transparent; color: #e31837; display:flex; align-items:center; justify-content:center;
   cursor: pointer; transition: all 0.2s ease;
 }
 .header-btn:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
@@ -58,12 +58,12 @@
 .robot-detail { width: 30px; height: 10px; background-color: white; border-radius: 5px; position: absolute; top: 15px; left: 15px; animation: glow 2s infinite; }
 
 /* layout */
-.expanded-chatbot { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 9999; display: flex; flex-direction: column; }
+.expanded-chatbot { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; flex-direction: column; }
 .app-container { display: flex; flex: 1; height: calc(100vh - 70px); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
 .main-content { flex: 1; transition: all 0.3s ease; background-color: #f5f7fb; overflow: hidden; height: 100%; }
 .sidebar-collapsed { margin-left: 70px; width: calc(100% - 70px); }
 .sidebar-expanded { margin-left: 250px; width: calc(100% - 250px); }
-.h-100 { height: 100%; margin: 0 5px 0 5px; }
+.h-100 { height: 100%;overflow: auto; }
 
 /* animations */
 @keyframes float { 0%{transform:translateY(0)} 50%{transform:translateY(-10px)} 100%{transform:translateY(0)} }
@@ -83,3 +83,5 @@
   .minimized-chatbot { bottom: 10px; right: 10px; }
   .robot-bubble { max-width: 150px; font-size: 0.8rem; }
 }
+
+

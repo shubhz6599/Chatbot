@@ -11,12 +11,18 @@ import { ValidationService } from './services/validation.service';
 import { Papa } from 'ngx-papaparse';
 import { ChatService } from './services/chat.service';
 import { HttpClientModule } from '@angular/common/http';
+import { CallAssistantComponent } from './call-assistant/call-assistant.component';
+import { FaqsComponent } from './faqs/faqs.component';
+import { SafeUrlPipe } from './pipes/safe-url.pipe';
 @NgModule({
   declarations: [
     AppComponent,
     SidebarComponentComponent,
     ChatAreaComponentComponent,
     ChatHistoryComponentComponent,
+    CallAssistantComponent,
+    FaqsComponent,
+    SafeUrlPipe,
   ],
   imports: [
     BrowserModule,

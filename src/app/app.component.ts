@@ -29,14 +29,13 @@ changeView(view: string) {
   if (view === 'newChat') {
     this.createNewSession();   // create fresh session
     this.currentView = 'chat'; // open chat window
-  } else if (view === 'history') {
-    this.currentView = 'history';
   } else {
-    this.currentView = 'chat';
+    this.currentView = view;   // ✅ allow faqs, callAssistant, history
   }
 
   if (this.isListening) this.isListening = false;
 }
+
 
 
   onStartListening() { this.isListening = true; }
@@ -47,49 +46,52 @@ changeView(view: string) {
     this.currentView = 'chat';
   }
 onSessionUpdated(updatedSession: any) {
+  // Don't store empty sessions (only "bot hello" exists)
+  const hasUserMessage = updatedSession.messages.some((msg: any) => msg.sender === 'user');
+
   // Update title only if it's still default "New Chat"
-  if (updatedSession.title === 'New Chat') {
+  if (updatedSession.title === 'New Chat' && hasUserMessage) {
     const firstUserMsg = updatedSession.messages.find((msg: any) => msg.sender === 'user');
     if (firstUserMsg) {
       if (firstUserMsg.text) {
-        // Text message
         updatedSession.title = firstUserMsg.text.length > 30
           ? firstUserMsg.text.substring(0, 30) + '...'
           : firstUserMsg.text;
       } else if (firstUserMsg.fileName) {
-        // File upload
         updatedSession.title = firstUserMsg.fileName;
       }
     }
   }
 
   this.currentSession = updatedSession;
-  const index = this.sessionHistory.findIndex(s => s.id === updatedSession.id);
-  if (index !== -1) {
-    this.sessionHistory[index] = updatedSession;
-  } else {
-    this.sessionHistory.unshift(updatedSession);
-  }
-  this.saveSessionHistory();
-}
 
-
-
-
-  createNewSession() {
-    console.log(this.sessionHistory);
-
-    const newSession = {
-      id: Date.now(),
-      title: 'New Chat',
-      messages: [{ sender: 'bot', text: 'Hello! How can I assist you today?', timestamp: new Date() }],
-      date: new Date(),
-      lastUpdated: new Date()
-    };
-    this.currentSession = newSession;
-    this.sessionHistory.unshift(newSession);
+  if (hasUserMessage) {
+    const index = this.sessionHistory.findIndex(s => s.id === updatedSession.id);
+    if (index !== -1) {
+      this.sessionHistory[index] = updatedSession;
+    } else {
+      this.sessionHistory.unshift(updatedSession);
+    }
     this.saveSessionHistory();
   }
+}
+
+createNewSession() {
+  // 👉 Don't push to history immediately
+  const newSession = {
+    id: Date.now(),
+    title: 'New Chat',
+    messages: [
+      { sender: 'bot', text: 'Hello! How can I assist you today?', timestamp: new Date() }
+    ],
+    date: new Date(),
+    lastUpdated: new Date()
+  };
+  this.currentSession = newSession;
+  // ⚠️ sessionHistory.unshift(newSession) REMOVED
+  // ⚠️ this.saveSessionHistory() REMOVED
+}
+
 
   loadSessionHistory() {
     const saved = localStorage.getItem('chatHistory');
@@ -104,4 +106,5 @@ onSessionUpdated(updatedSession: any) {
   saveSessionHistory() {
     localStorage.setItem('chatHistory', JSON.stringify(this.sessionHistory));
   }
+
 }

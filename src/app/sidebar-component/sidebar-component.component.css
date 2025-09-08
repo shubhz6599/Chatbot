@@ -1,19 +1,20 @@
 .sidebar {
   width: 250px;
   height: 100vh;
-  background: linear-gradient(180deg, #b51229 0%, #8a0f21 100%);
-  color: #fff;
+  background: transparent;
+  color: #e31837;
   transition: width 0.3s ease, background 0.3s ease;
   display: flex;
   flex-direction: column;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+  /* box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25); */
   z-index: 1000;
   position: fixed;
   left: 0;
   top: 0;
   overflow-y: auto;
-  border-radius: 0 20px 20px 0;
-  backdrop-filter: blur(12px);
+  border-radius: 0px;
+  backdrop-filter: blur(1000px);
+  border-right: 1px solid lightgrey !important;
 }
 
 .sidebar.collapsed {
@@ -40,14 +41,14 @@
 
 .logo i {
   font-size: 30px;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+  /* filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35)); */
 }
 
 /* Toggle button */
 .toggle-btn {
   background: rgba(255, 255, 255, 0.1);
   border: none;
-  color: #fff;
+  color: #e31837;
   cursor: pointer;
   width: 42px;
   height: 42px;
@@ -59,7 +60,7 @@
   position: absolute;
   right: 15px;
   top: 15px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-btn:hover {
@@ -82,7 +83,7 @@
   cursor: pointer;
   border-radius: 14px;
   margin: 6px 12px;
-  color: #e5e7eb;
+  color: #e31837;
   transition: all 0.25s ease;
 }
 
@@ -95,14 +96,14 @@
 
 .menu-item:hover {
   background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  color: #e31837;
   transform: translateX(2px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.10);
 }
 
 .menu-item:hover i {
   transform: scale(1.25);
-  color: #fff;
+  color: #e31837;
 }
 
 /* Active State */
@@ -110,7 +111,7 @@
   background: #fff;
   color: #b51229;
   font-weight: 600;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.25);
+  box-shadow:0 3px 10px rgba(0, 0, 0, 0.15);
 }
 
 .menu-item.active i {

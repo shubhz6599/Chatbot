@@ -7,23 +7,21 @@
     </div>
   </div>
 
-  <!-- Initial suggestions -->
-  <div class="suggestions" *ngIf="dynamicSuggestions.length === 0">
+  <!-- <div class="suggestions" *ngIf="dynamicSuggestions.length === 0">
     <div class="suggestion" *ngFor="let question of initialQuestions" (click)="selectSuggestion(question)">
       {{ question }}
     </div>
-  </div>
+  </div>  -->
 
-  <!-- Dynamic suggestions -->
-  <div class="suggestions" *ngIf="dynamicSuggestions.length > 0">
+  <!-- <div class="suggestions" *ngIf="dynamicSuggestions.length > 0">
     <div class="suggestion" *ngFor="let question of dynamicSuggestions" (click)="selectSuggestion(question)">
       {{ question }}
     </div>
-  </div>
+  </div> -->
 
   <div class="chat-messages flex-grow-1">
     <!-- Welcome robot -->
-    <div class="message bot-message welcome-message">
+    <!-- <div class="message bot-message welcome-message">
       <div class="robot-container">
         <div class="robot">
           <div class="robot-head">
@@ -42,7 +40,7 @@
           Hello! How can I assist you today?
         </div>
       </div>
-    </div>
+    </div> -->
 
     <!-- messages -->
     <ng-container *ngFor="let message of messages; let i = index">
@@ -96,17 +94,17 @@
         </div>
 
         <!-- Text -->
-        <div *ngIf="!message.typing && message.type !== 'file'" class="message-content">
+        <div *ngIf="!message.typing && message.type !== 'file'" class="message-content" [innerHTML]="formatMessage(message.text)">
           {{ message.text }}
         </div>
 
         <div *ngIf="message.sender === 'bot' && i === messages.length -1" class="action-buttons">
 
-          <button class="icon-button speak" (click)="speak(message.text)">
+          <button class="icon-button speak" (click)="speak(message.text)" *ngIf="showVolume">
             <i class="material-icons">volume_up</i>
           </button>
 
-          <button class="icon-button stop" (click)="stop()">
+          <button class="icon-button stop" (click)="stop()" *ngIf="!showVolume">
             <i class="material-icons">volume_off</i>
           </button>
 
@@ -155,6 +153,15 @@
       </div>
     </div>
   </div>
+  <!-- Suggestions (just above input) -->
+<div class="suggestions" *ngIf="dynamicSuggestions.length > 0">
+  <div class="suggestion"
+       *ngFor="let question of dynamicSuggestions"
+       (click)="selectSuggestion(question)">
+    {{ question }}
+  </div>
+</div>
+
   <!-- Chat input -->
   <div class="chat-input">
     <!-- File upload -->
@@ -183,7 +190,7 @@
       <i class="material-icons">stop</i>
     </button>
 
-    <input [(ngModel)]="userInput" placeholder="Type your message..." (keyup.enter)="sendMessage()"
+    <input [(ngModel)]="userInput" placeholder="Type your message..." (keyup)="onTyping()" (keyup.enter)="sendMessage()"
       [disabled]="isWaitingForBot">
 
     <button class="send-button" (click)="sendMessage()" [disabled]="isWaitingForBot || !userInput.trim()">

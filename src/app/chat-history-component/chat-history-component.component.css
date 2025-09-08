@@ -26,7 +26,7 @@
 /* ========= CONTAINER ========= */
 .chat-history {
   background: var(--bg);
-  background-image: var(--gradient-bg);
+  /* background-image: var(--gradient-bg); */
   border-radius: 16px;
   box-shadow: var(--shadow);
   padding: 16px;
@@ -59,14 +59,14 @@
   cursor: pointer;
   transition: all .18s ease;
   background: var(--card);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  /* backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur); */
   position: relative;
 }
 .session-item:hover {
   transform: translateY(-1px);
   border-color: rgba(227,24,55,.45);
-  box-shadow: var(--glow);
+  /* box-shadow: var(--glow); */
 }
 .session-item.current {
   border-color: var(--brand);

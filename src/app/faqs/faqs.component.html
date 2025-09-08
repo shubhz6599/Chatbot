@@ -1,0 +1,47 @@
+<div class="assistant-container">
+  <div class="assistant-header">
+    <h2>Frequently Asked Questions</h2>
+    <p class="assistant-subtitle">Click a question to view the answer.</p>
+  </div>
+
+  <ul class="faq-list">
+    <li *ngFor="let faq of faqs; let i = index" (click)="toggleFaq(i)" [class.expanded]="expandedIndex === i">
+
+      <div class="faq-question">
+        <i class="material-icons">help_outline</i>
+        <span>{{ faq.question }}</span>
+        <i class="material-icons toggle-icon">
+          {{ expandedIndex === i ? 'expand_less' : 'expand_more' }}
+        </i>
+      </div>
+
+      <div class="faq-answer" *ngIf="expandedIndex === i" (click)="$event.stopPropagation()">
+
+        <!-- Show text -->
+        <p *ngIf="faq.type === 'text'">{{ faq.answer }}</p>
+
+        <!-- Show text + button link -->
+        <div *ngIf="faq.type === 'link'">
+          <p>{{ faq.answer }}</p>
+          <button *ngIf="faq.link" class="btn-link" (click)="openLink(faq.link)">
+            Click Here
+          </button>
+        </div>
+
+        <!-- Show video -->
+        <!-- Show video -->
+        <div *ngIf="faq.type === 'video'" class="video-wrapper">
+          <iframe *ngIf="faq.videoUrl" src="assets/videos/mSetu_2.mp4" frameborder="0" allowfullscreen>
+          </iframe>
+          <!-- <video width="100%" height="auto" controls *ngIf="faq.videoUrl">
+            <source src="assets/videos/mSetu_2.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video> -->
+
+        </div>
+
+
+      </div>
+    </li>
+  </ul>
+</div>

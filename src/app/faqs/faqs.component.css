@@ -1,0 +1,125 @@
+.assistant-container {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  padding: 24px;
+  margin: 10px auto;
+  animation: fadeIn 0.5s ease-in-out;
+
+  /* remove any fixed height if you set it earlier */
+  max-width: 800px; /* optional */
+
+  /* allow it to grow naturally */
+  height: auto;
+
+  /* enable scroll if needed */
+}
+
+
+.assistant-header h2 {
+  color: #e31837;
+  font-size: 1.5rem;
+  margin: 0 0 6px 0;
+  text-align: center;
+}
+
+.assistant-subtitle {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.faq-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.faq-list li {
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.9);
+  transition: all 0.25s ease;
+  cursor: pointer;
+  padding: 14px;
+}
+
+.faq-list li:hover {
+  border-color: #e31837;
+  transform: translateY(-2px);
+}
+
+.faq-question {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: #2a2e33;
+}
+
+.faq-question i {
+  color: #e31837;
+}
+
+.toggle-icon {
+  margin-left: auto;
+}
+
+.faq-answer {
+  margin-top: 10px;
+  color: #444;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.btn-link {
+  background: #e31837;
+  color: #fff;
+  font-weight: 600;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.3s ease;
+}
+
+.btn-link:hover {
+  background: #c4142d;
+  transform: translateY(-2px);
+}
+
+.video-wrapper {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.video-wrapper iframe {
+  width: 100%;
+  height: 280px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.video-wrapper {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.video-wrapper video {
+  width: 100%;
+  max-height: 600px; /* optional */
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}

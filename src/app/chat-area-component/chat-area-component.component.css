@@ -36,8 +36,8 @@
 
 /* ========= LAYOUT & BACKGROUND ========= */
 .chat-area {
-  background: var(--bg);
-  background-image: var(--gradient-bg);
+  background: url('/assets/images/doodleBG2.png') repeat;
+  background-size: cover;/* or try 'contain' or specific px if you want */
   border-radius: 16px;
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -49,47 +49,41 @@
   isolation: isolate;
 }
 
+
 /* floating ambient glow */
 .chat-area::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(600px 150px at 60% 0, rgba(227,24,55,0.08), transparent 60%);
+  /* background: radial-gradient(600px 150px at 60% 0, rgba(227,24,55,0.08), transparent 60%); */
   opacity: .8;
 }
 
 /* ========= SUGGESTIONS ========= */
 .suggestions {
-  padding: 14px 16px;
   display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  background: linear-gradient( to bottom, rgba(0,0,0,0.00), rgba(0,0,0,0.03) ),
-              var(--bg);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin: 0 8px 6px 8px; /* small gap from input */
+  padding: 4px 0;
+  max-height: 150px;
+  overflow-y: auto;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .suggestion {
-  padding: 10px 14px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-radius: 999px;
-  font-size: .9rem;
+  padding: 8px 12px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: all .2s ease;
-  color: var(--text);
+  transition: background 0.2s ease;
 }
+
 .suggestion:hover {
-  transform: translateY(-1px);
-  border-color: rgba(227,24,55,.4);
-  box-shadow: var(--glow);
-  background: linear-gradient( to bottom right, rgba(255,255,255,.85), rgba(255,255,255,.75) );
+  background: #f5f5f5;
 }
+
 .theme-red-black .suggestion:hover {
   background: linear-gradient( to bottom right, rgba(25,28,33,.85), rgba(25,28,33,.75) );
   color: #fff;
@@ -103,7 +97,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: 64vh;
+  max-height: 74vh;
   scroll-behavior: smooth;
 }
 
@@ -135,16 +129,16 @@
   border-radius: 18px;
   font-size: .95rem;
   line-height: 1.45;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  /* box-shadow: 0 4px 16px rgba(0,0,0,0.06);
   backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur); */
 }
 
 .user-message .message-content {
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-700) 100%);
   color: #fff;
   border-bottom-right-radius: 6px;
-  box-shadow: 0 10px 22px rgba(227,24,55,.25);
+  /* box-shadow: 0 10px 22px rgba(227,24,55,.25); */
 }
 
 .bot-message .message-content {
@@ -199,11 +193,11 @@
 .icon-button {
   border: none; border-radius: 50%; width: 44px; height: 44px;
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-  background: var(--card); color: var(--text); box-shadow: var(--shadow);
+  background: var(--card); color: var(--text);
   transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
   border: 1px solid var(--border);
 }
-.icon-button:hover { transform: scale(1.08); box-shadow: var(--glow); }
+.icon-button:hover { transform: scale(1.08); }
 .icon-button.speak { background: linear-gradient(135deg, var(--brand) 0%, var(--brand-600) 100%); color: #fff; }
 .icon-button.stop { background: var(--bg-subtle); color: var(--brand); }
 
@@ -307,16 +301,16 @@
 }
 .mic-button:hover, .send-button:hover {
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-600) 100%);
-  color: #fff; transform: translateY(-1px); box-shadow: var(--glow);
+  color: #fff; transform: translateY(-1px);
 }
 
 /* file upload button */
 .file-upload-btn {
   width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  border:1px solid var(--border); cursor:pointer; transition:all .2s; background: var(--bg); color: var(--muted);
+  border:1px solid var(--border); cursor:pointer; transition:all .2s; background: var(--bg); color: var(--brand);
   position:relative;
 }
-.file-upload-btn:hover { background: linear-gradient(135deg, var(--brand) 0%, var(--brand-600) 100%); color:white; border-color: transparent; box-shadow: var(--glow); }
+.file-upload-btn:hover { background: linear-gradient(135deg, var(--brand) 0%, var(--brand-600) 100%); color:white; border-color: transparent;  }
 .file-upload-btn.has-file { background: linear-gradient(135deg, var(--brand) 0%, var(--brand-600) 100%); color:white; border-color: transparent; }
 .file-input { display:none; }
 .file-count {
@@ -457,4 +451,14 @@ input:disabled { opacity: 0.7; cursor: not-allowed; background-color: var(--bg-s
     left: 50%; top: -10px; transform: translateX(-50%);
     border-top: none; border-bottom: 10px solid var(--brand); border-right: 10px solid transparent; border-left: 10px solid transparent;
   }
+}
+.chat-link {
+  color: #1a73e8;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.chat-link:hover {
+  text-decoration: none;
+  color: #0b57d0;
 }
