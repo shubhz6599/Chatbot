@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { ChatService } from '../services/chat.service';
 import { TextToSpeechService } from '../services/text-to-speech.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { SessionResetService } from '../services/session-reset.service';
 @Component({
   selector: 'app-chat-area-component',
   templateUrl: './chat-area-component.component.html',
@@ -70,7 +71,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   private speechSubscription: Subscription | null = null;
 
   constructor(private speechService: SpeechService, private validationService: ValidationService, private chatService: ChatService, private tts: TextToSpeechService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer, private sessionReset: SessionResetService
   ) { }
 
   ngOnInit() {
@@ -83,6 +84,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       this.createNewSession();
     }
     this.updateSession();
+    this.sessionReset.init();
   }
 
   ngOnChanges() {
@@ -256,27 +258,27 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   // Convert plain text to HTML with clickable links
-formatMessage(text: string, isHtml: boolean = false): SafeHtml {
-  if (!text) return '';
+  formatMessage(text: string, isHtml: boolean = false): SafeHtml {
+    if (!text) return '';
 
-  if (isHtml) {
-    return this.sanitizer.bypassSecurityTrustHtml(text);
+    if (isHtml) {
+      return this.sanitizer.bypassSecurityTrustHtml(text);
+    }
+
+    // fallback → detect URLs and convert to links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const html = text.replace(urlRegex, (url) => {
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-link">${url}</a>`;
+    });
+    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
-  // fallback → detect URLs and convert to links
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const html = text.replace(urlRegex, (url) => {
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-link">${url}</a>`;
-  });
-  return this.sanitizer.bypassSecurityTrustHtml(html);
-}
-
-handleHtmlClick(event: Event) {
-  const target = event.target as HTMLElement;
-  if (target && target.id === 'callAgent') {
-    this.triggerCall(); // ✅ call the same function as before
+  handleHtmlClick(event: Event) {
+    const target = event.target as HTMLElement;
+    if (target && target.id === 'callAgent') {
+      this.triggerCall(); // ✅ call the same function as before
+    }
   }
-}
 
   // main send
   sendMessage() {
@@ -336,7 +338,7 @@ handleHtmlClick(event: Event) {
 
         this.isWaitingForBot = false;
         this.updateSession();
-
+        this.scrollToMessage(this.messages.length - 1);
         // auto-scroll after typing done
         setTimeout(() => {
           const c = document.querySelector('.chat-messages') as HTMLElement | null;
@@ -352,29 +354,30 @@ handleHtmlClick(event: Event) {
         });
         this.isWaitingForBot = false;
         this.updateSession();
+        this.scrollToMessage(this.messages.length - 1);
       }
     });
 
   }
 
-   triggerCall() {
+  triggerCall() {
     this.startCall.emit();   // 👈 notify parent
   }
 
-sendDummyResponse() {
-  const dummyRes = {
-    answer: "you want to call ? <button id='callAgent' class='btn-call'>Call Agent</button>",
-    is_html: true,
-    debug: {}
-  };
+  sendDummyResponse() {
+    const dummyRes = {
+      answer: "you want to call ? <button id='callAgent' class='btn-call'>Call Agent</button>",
+      is_html: true,
+      debug: {}
+    };
 
-  this.messages.push({
-    sender: 'bot',
-    text: dummyRes.answer,
-    is_html: dummyRes.is_html,   // ✅ keep track of HTML
-    timestamp: new Date()
-  });
-}
+    this.messages.push({
+      sender: 'bot',
+      text: dummyRes.answer,
+      is_html: dummyRes.is_html,   // ✅ keep track of HTML
+      timestamp: new Date()
+    });
+  }
 
 
 
@@ -448,6 +451,7 @@ sendDummyResponse() {
           };
         }
 
+
         if (fileMessageIndex !== -1) {
           this.messages[fileMessageIndex].isValid = validationResult.isValid;
           this.messages[fileMessageIndex].isProcessing = false;
@@ -503,6 +507,15 @@ sendDummyResponse() {
       const c = document.querySelector('.chat-messages') as HTMLElement | null;
       if (c) c.scrollTop = c.scrollHeight;
     }, 0);
+  }
+
+  private scrollToMessage(index: number) {
+    setTimeout(() => {
+      const el = document.getElementById(`msg-${index}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50); // delay so DOM updates first
   }
 
 

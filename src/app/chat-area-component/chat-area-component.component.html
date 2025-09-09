@@ -45,7 +45,7 @@
     <!-- messages -->
     <ng-container *ngFor="let message of messages; let i = index">
       <div class="message" [class.user-message]="message.sender === 'user'"
-        [class.bot-message]="message.sender === 'bot'">
+        [class.bot-message]="message.sender === 'bot'" [attr.id]="'msg-' + i">
         <!-- FILE tile -->
         <div *ngIf="message.type === 'file'" class="file-message">
           <div class="file-info">
