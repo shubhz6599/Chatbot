@@ -5,6 +5,7 @@ import { ValidationResult, ValidationService } from '../services/validation.serv
 import * as XLSX from 'xlsx';
 import { ChatService } from '../services/chat.service';
 import { TextToSpeechService } from '../services/text-to-speech.service';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 @Component({
   selector: 'app-chat-area-component',
   templateUrl: './chat-area-component.component.html',
@@ -16,6 +17,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   @Output() startListening = new EventEmitter<void>();
   @Output() stopListening = new EventEmitter<void>();
   @Output() sessionUpdated = new EventEmitter<any>();
+  @Output() startCall = new EventEmitter<void>();
 
   messages: any[] = [];
   userInput: string = '';
@@ -41,14 +43,24 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   errorMessage: string = '';
   // suggestion bank
   allQuestions: string[] = [
-    'How to Change password',
-    'I forgot my password',
-    'How to reset my password?',
-    'How to contact MSETU Helpdesk?',
-    'How to contact MSETU HelpDesk',
-    'I cannot access my account',
-    'Login issues',
-    'Not Able To Login'
+    'How to reset password for Msetu?',
+    'How to reset password for Msetu?',
+    'How to resolve NO SCHEDULE LINE AVAILABLE?',
+    'How to resolve CCK NOT MAINTAIN?',
+    'How to resolve SBU/AFS PLANT DELIVERY TIME error?',
+    'How to resolve PO STATUS NEW/WRONG ITEM/ITEM CANCEL error?',
+    'How to resolve BSP ERROR/WARNING MESSAGE?',
+    'How to resolve VENDOR/MAHINDRA GSTN ERROR?',
+    'How to resolve PLANT EXTENSION ACTIVITY error?',
+    'How to resolve ASN NOT AVAILABLE FOR PCS/ASN TRACE?',
+    'How to resolve PO TRIGGER issue?',
+    'How to resolve SHIPMENT CREATED AGAINST ASN?',
+    'How to resolve ASN DOES NOT EXIST IN BUYER SYSTEM?',
+    'How to resolve ASN DELETION error?',
+    'How to resolve RETRO NO PROVISION ERROR?',
+    'How to resolve RETRO RATE MISMATCH ERROR?',
+    'How to resolve RETRO DATA NOT REPLICATING issue?'
+
   ];
 
 
@@ -57,7 +69,9 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
   private speechSubscription: Subscription | null = null;
 
-  constructor(private speechService: SpeechService, private validationService: ValidationService, private chatService: ChatService, private tts: TextToSpeechService) { }
+  constructor(private speechService: SpeechService, private validationService: ValidationService, private chatService: ChatService, private tts: TextToSpeechService,
+    private sanitizer: DomSanitizer
+  ) { }
 
   ngOnInit() {
     if (this.session && this.session.messages) {
@@ -242,14 +256,27 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   // Convert plain text to HTML with clickable links
-  formatMessage(text: string): string {
-    if (!text) return '';
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    return text.replace(urlRegex, (url) => {
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-link">${url}</a>`;
-    });
+formatMessage(text: string, isHtml: boolean = false): SafeHtml {
+  if (!text) return '';
+
+  if (isHtml) {
+    return this.sanitizer.bypassSecurityTrustHtml(text);
   }
 
+  // fallback → detect URLs and convert to links
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const html = text.replace(urlRegex, (url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-link">${url}</a>`;
+  });
+  return this.sanitizer.bypassSecurityTrustHtml(html);
+}
+
+handleHtmlClick(event: Event) {
+  const target = event.target as HTMLElement;
+  if (target && target.id === 'callAgent') {
+    this.triggerCall(); // ✅ call the same function as before
+  }
+}
 
   // main send
   sendMessage() {
@@ -295,11 +322,17 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       next: async (res) => {
         // remove typing indicator
         this.messages = this.messages.filter(m => !m.typing);
-
         const botText = res?.answer || "Sorry, I couldn't find an answer.";
-
-        // ⬅️ animate typing instead of instant push
-        await this.animateBotResponse(botText);
+        if (res?.is_html) {
+          this.messages.push({
+            sender: 'bot',
+            text: res.answer || 'Talk to a live agent',
+            type: 'call',
+            timestamp: new Date()
+          });
+        } else {
+          await this.animateBotResponse(res?.answer || "Sorry, I couldn't find an answer.");
+        }
 
         this.isWaitingForBot = false;
         this.updateSession();
@@ -323,6 +356,26 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     });
 
   }
+
+   triggerCall() {
+    this.startCall.emit();   // 👈 notify parent
+  }
+
+sendDummyResponse() {
+  const dummyRes = {
+    answer: "you want to call ? <button id='callAgent' class='btn-call'>Call Agent</button>",
+    is_html: true,
+    debug: {}
+  };
+
+  this.messages.push({
+    sender: 'bot',
+    text: dummyRes.answer,
+    is_html: dummyRes.is_html,   // ✅ keep track of HTML
+    timestamp: new Date()
+  });
+}
+
 
 
   // validation (ASN still supported here)

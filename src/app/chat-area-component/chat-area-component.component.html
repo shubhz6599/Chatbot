@@ -94,8 +94,8 @@
         </div>
 
         <!-- Text -->
-        <div *ngIf="!message.typing && message.type !== 'file'" class="message-content" [innerHTML]="formatMessage(message.text)">
-          {{ message.text }}
+        <div *ngIf="!message.typing && message.type !== 'file'" class="message-content"
+          [innerHTML]="formatMessage(message.text, message.is_html)" (click)="handleHtmlClick($event)">
         </div>
 
         <div *ngIf="message.sender === 'bot' && i === messages.length -1" class="action-buttons">
@@ -154,13 +154,13 @@
     </div>
   </div>
   <!-- Suggestions (just above input) -->
-<div class="suggestions" *ngIf="dynamicSuggestions.length > 0">
-  <div class="suggestion"
-       *ngFor="let question of dynamicSuggestions"
-       (click)="selectSuggestion(question)">
-    {{ question }}
+  <div class="suggestions" *ngIf="dynamicSuggestions.length > 0">
+    <div class="suggestion"
+    *ngFor="let question of dynamicSuggestions"
+    (click)="selectSuggestion(question)">
+      {{ question }}
+    </div>
   </div>
-</div>
 
   <!-- Chat input -->
   <div class="chat-input">
@@ -196,6 +196,7 @@
     <button class="send-button" (click)="sendMessage()" [disabled]="isWaitingForBot || !userInput.trim()">
       <i class="material-icons">send</i>
     </button>
+    <!-- <button class="btn-test" (click)="sendDummyResponse()">💡 Test Call Agent Response</button> -->
   </div>
 
 

@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
+import { CallAssistantComponent } from './call-assistant/call-assistant.component';
 
 @Component({
   selector: 'app-root',
@@ -13,9 +14,19 @@ export class AppComponent {
   sessionHistory: any[] = [];
   isMinimized: boolean = true;
 
+  @ViewChild(CallAssistantComponent) callAssistantComp!: CallAssistantComponent;
   constructor() {
     this.loadSessionHistory();
     if (!this.currentSession) this.createNewSession();
+  }
+   handleStartCall() {
+    this.currentView = 'callAssistant';
+
+    setTimeout(() => {
+      if (this.callAssistantComp) {
+        this.callAssistantComp.startBrowserCall();
+      }
+    }, 0);
   }
 
   toggleChatbot() {

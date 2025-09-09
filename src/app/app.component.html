@@ -62,7 +62,8 @@
             [session]="currentSession"
             (startListening)="onStartListening()"
             (stopListening)="onStopListening()"
-            (sessionUpdated)="onSessionUpdated($event)">
+            (sessionUpdated)="onSessionUpdated($event)"
+            (startCall)="handleStartCall()">
           </app-chat-area-component>
         </div>
 
