@@ -97,7 +97,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: 74vh;
+  /* max-height: 74vh; */
   scroll-behavior: smooth;
 }
 
@@ -274,12 +274,12 @@
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     /* backdrop-filter: var(--glass-blur); */
-    position: fixed;
+    position: sticky;
     z-index: 2;
     bottom: 0;
-    width: 100%;
-    max-width: 92%;
-  /* margin: 8px 12px 12px; */
+    width: 98%;
+    /* max-width: 92%; */
+  margin: 0;
 }
 
 .chat-input input {
@@ -326,9 +326,11 @@
 
 /* stop */
 .stop-button {
-  width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  padding: 10px;
+  /* width: 46px; height: 46px; */
+   border-radius: 15px; display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--border); cursor: pointer; transition: all .2s;
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-600) 100%); color: white;
+  background: #e31837; color: white;
   opacity: .95;
 }
 .stop-button:hover { transform: translateY(-1px); box-shadow: var(--glow); }

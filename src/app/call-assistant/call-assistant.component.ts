@@ -97,9 +97,10 @@ export class CallAssistantComponent implements OnInit, OnDestroy {
       if (this.queueNumber <= 1) {
         clearInterval(this.queueInterval);
         this.inQueue = false;
-        this.startTwilioCall(); // after queue finishes → call screen
+        this.startTwilioCall();
       }
-    }, 2000);
+    }, 2500); // 2.5s per step
+
   }
 
   private async startTwilioCall() {

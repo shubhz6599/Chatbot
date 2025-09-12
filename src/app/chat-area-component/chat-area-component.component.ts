@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, OnChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, OnChanges, NgZone } from '@angular/core';
 import { SpeechService } from '../services/speech.service';
 import { Subscription } from 'rxjs';
 import { ValidationResult, ValidationService } from '../services/validation.service';
@@ -71,7 +71,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   private speechSubscription: Subscription | null = null;
 
   constructor(private speechService: SpeechService, private validationService: ValidationService, private chatService: ChatService, private tts: TextToSpeechService,
-    private sanitizer: DomSanitizer, private sessionReset: SessionResetService
+    private sanitizer: DomSanitizer, private sessionReset: SessionResetService, private ngZone: NgZone
   ) { }
 
   ngOnInit() {
@@ -229,11 +229,16 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     }
     this.speechService.stopListening();
     this.stopListening.emit();
-
     // ✅ Always restore mic state correctly
     if (this.interimSpeechText && this.interimSpeechText !== 'Listening...') {
       this.userInput = this.interimSpeechText;
     }
+    if (this.userInput.trim()) {
+      // mark this as mic-based input
+      this.sendMessage(true);  // 👈 pass a flag (isFromMic = true)
+    }
+    // this.userInput = '';
+    this.interimSpeechText = '';
     this.isProcessingSpeech = false;
     this.isListening = false;
   }
@@ -281,7 +286,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   // main send
-  sendMessage() {
+  sendMessage(isFromMic: boolean = false) {
     if (!this.userInput.trim() && this.uploadedFiles.length === 0) return; // nothing to send
     if (this.isWaitingForBot) return;
 
@@ -325,6 +330,9 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
         // remove typing indicator
         this.messages = this.messages.filter(m => !m.typing);
         const botText = res?.answer || "Sorry, I couldn't find an answer.";
+        if (isFromMic) {
+          this.speak(botText);
+        }
         if (res?.is_html) {
           this.messages.push({
             sender: 'bot',
@@ -334,6 +342,9 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
           });
         } else {
           await this.animateBotResponse(res?.answer || "Sorry, I couldn't find an answer.");
+          if (isFromMic) {
+            this.speak(res?.answer || "Sorry, I couldn't find an answer.");
+          }
         }
 
         this.isWaitingForBot = false;
@@ -352,6 +363,9 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
           text: 'Error fetching answer. Please try again.',
           timestamp: new Date()
         });
+        if (isFromMic) {
+          this.speak('Error fetching answer. Please try again.');
+        }
         this.isWaitingForBot = false;
         this.updateSession();
         this.scrollToMessage(this.messages.length - 1);
@@ -712,9 +726,30 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   speak(text: string) {
-    this.showVolume = false
-    this.tts.speak(text);
+    this.showVolume = false;
+
+    this.tts.speak(
+      text,
+      () => console.log('▶️ Started reading'),
+      () => {
+        console.log('✅ Finished reading');
+        this.ngZone.run(() => {
+          this.showVolume = true;   // 🔥 Angular will detect this
+        });
+      },
+      () => {
+        console.log('❌ Error while reading');
+        this.ngZone.run(() => {
+          this.showVolume = true;
+        });
+      },
+      (spoken, pending) => {
+        console.log('📖 Spoken:', spoken);
+        console.log('⏳ Remaining:', pending);
+      }
+    );
   }
+
 
   stop() {
     this.showVolume = true
