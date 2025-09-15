@@ -34,6 +34,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     'How can I validate asn file',
     // 'What is your pricing?'
   ];
+likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
 
   // dynamic suggestions (speech)
   dynamicSuggestions: string[] = [];
@@ -169,7 +170,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
         this.messages.push({
           sender: 'bot',
           text: `You selected: ${action}. How can I help you with this?`,
-          timestamp: new Date()
+          timestamp: new Date().toISOString()
         });
         this.updateSession();
         return;
@@ -294,7 +295,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
     // show user message
     if (this.userInput.trim()) {
-      this.messages.push({ sender: 'user', text: this.userInput, timestamp: new Date() });
+      this.messages.push({ sender: 'user', text: this.userInput, timestamp: new Date().toISOString() });
     }
     this.updateSession();
 
@@ -784,6 +785,16 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       }, 30); // ⏱️ adjust speed (ms per character)
     });
   }
+setFeedback(message: any, type: 'like' | 'dislike') {
+  if (message.feedback === type) {
+    message.feedback = null; // toggle off
+  } else {
+    message.feedback = type;
+  }
+
+  this.sessionUpdated.emit(this.session);
+}
+
 
 
 }

@@ -178,7 +178,7 @@
 @keyframes typing-bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
 
 /* ========= ACTION BUTTONS & ICON BUTTONS ========= */
-.action-buttons { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.action-buttons { display:flex; flex-wrap:wrap; gap:8px; margin-top:0px; }
 .action-button {
   padding:8px 12px; background: var(--card); border:1px solid var(--border); border-radius:12px;
   font-size:.85rem; cursor:pointer; transition:all .2s; color: var(--text);
@@ -189,7 +189,9 @@
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-600) 100%);
   color:#fff; border-color: transparent; box-shadow: var(--glow);
 }
-
+.action-buttons.last-bot {
+  margin-top: 8px;  /* only last bot message gets spacing */
+}
 .icon-button {
   border: none; border-radius: 50%; width: 44px; height: 44px;
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
@@ -237,7 +239,7 @@
 
 /* ========= UPLOADED FILES PANEL ========= */
 .uploaded-files-panel {
-  margin: 0 0 70px 0;
+  margin: 0 0 0 0;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -492,4 +494,30 @@ input:disabled { opacity: 0.7; cursor: not-allowed; background-color: var(--bg-s
 ::ng-deep .message-content #callAgent:active {
   background: #b51229;
   transform: translateY(0);
+}
+/* Like / Dislike buttons */
+.icon-button.like,
+.icon-button.dislike {
+  background: none;
+  border: none;
+  padding: 2px;           /* compact */
+  cursor: pointer;
+  font-size: 14px;        /* smaller size */
+  line-height: 1;
+  color: var(--muted-2);   /* use theme variable */
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.icon-button.like:hover,
+.icon-button.dislike:hover {
+  transform: scale(1.1);  /* subtle hover effect */
+}
+
+/* Active states */
+.icon-button.like.active {
+  color: #19c37d;   /* green like ChatGPT */
+}
+
+.icon-button.dislike.active {
+  color: #ef4444;   /* red for dislike */
 }

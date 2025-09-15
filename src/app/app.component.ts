@@ -93,7 +93,7 @@ createNewSession() {
     id: Date.now(),
     title: 'New Chat',
     messages: [
-      { sender: 'bot', text: 'Hello! How can I assist you today?', timestamp: new Date() }
+      { sender: 'bot', text: 'Hello! How can I assist you today?', timestamp: new Date().toISOString(), feedback: null }
     ],
     date: new Date(),
     lastUpdated: new Date()

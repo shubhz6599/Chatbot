@@ -24,41 +24,14 @@ export class ChatHistoryComponentComponent implements OnInit {
     } else {
       // Create default hardcoded sessions if none exist
       this.sessionHistory = [
-        {
-          id: 1,
-          title: 'Customer Support Query',
-          messages: [
-            { sender: 'user', text: 'Hello, I need help with my account', timestamp: new Date(2023, 5, 15, 14, 30) },
-            { sender: 'bot', text: 'Hi there! How can I assist you today?', timestamp: new Date(2023, 5, 15, 14, 30) }
-          ],
-          date: new Date(2023, 5, 15, 14, 30),
-          lastUpdated: new Date(2023, 5, 15, 14, 35)
-        },
-        {
-          id: 2,
-          title: 'Product Information',
-          messages: [
-            { sender: 'user', text: 'Tell me about your premium plan', timestamp: new Date(2023, 5, 14, 10, 15) },
-            { sender: 'bot', text: 'Our premium plan includes advanced features...', timestamp: new Date(2023, 5, 14, 10, 15) }
-          ],
-          date: new Date(2023, 5, 14, 10, 15),
-          lastUpdated: new Date(2023, 5, 14, 10, 20)
-        },
-        {
-          id: 3,
-          title: 'Technical Issue',
-          messages: [
-            { sender: 'user', text: 'I cannot login to my account', timestamp: new Date(2023, 5, 13, 16, 45) },
-            { sender: 'bot', text: 'Let me help you with that. Have you tried resetting your password?', timestamp: new Date(2023, 5, 13, 16, 45) }
-          ],
-          date: new Date(2023, 5, 13, 16, 45),
-          lastUpdated: new Date(2023, 5, 13, 16, 50)
-        }
+
       ];
 
       // Save to localStorage
       localStorage.setItem('chatHistory', JSON.stringify(this.sessionHistory));
     }
+    console.log(this.sessionHistory);
+
   }
 
   viewSession(session: any) {

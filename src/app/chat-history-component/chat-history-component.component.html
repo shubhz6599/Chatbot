@@ -19,7 +19,7 @@
           {{ session.messages[0]?.text || 'No messages yet' }}
         </div>
         <div class="session-date">
-          {{ formatDate(session.lastUpdated || session.date) }}
+          {{ formatDate(session.date || session.lastUpdated) }}
         </div>
       </div>
     </div>
