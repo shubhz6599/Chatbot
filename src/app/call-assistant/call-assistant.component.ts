@@ -177,6 +177,7 @@ export class CallAssistantComponent implements OnInit, OnDestroy, OnChanges {
           console.log('[client] Incoming call disconnected before answer');
           this.incomingCall = null;
           this.showIncomingPanel = false;
+          this.endCall();
           this.callStatus = 'Call Ended';
         });
       });
