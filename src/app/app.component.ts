@@ -13,20 +13,39 @@ export class AppComponent {
   currentSession: any = null;
   sessionHistory: any[] = [];
   isMinimized: boolean = true;
+  // NEW: user role (agent | supplier)
+  role: 'agent' | 'supplier' | null = null;
 
   @ViewChild(CallAssistantComponent) callAssistantComp!: CallAssistantComponent;
   constructor() {
     this.loadSessionHistory();
     if (!this.currentSession) this.createNewSession();
   }
-   handleStartCall() {
+  handleStartCall() {
     this.currentView = 'callAssistant';
 
     setTimeout(() => {
       if (this.callAssistantComp) {
-        this.callAssistantComp.startBrowserCall();
+        // if role is null default to supplier (caller)
+        const roleToUse = this.role || 'supplier';
+        this.callAssistantComp.startBrowserCall(roleToUse);
       }
     }, 0);
+  }
+
+  // NEW: called from role selection UI
+  setRole(choice: 'agent' | 'supplier') {
+    this.role = choice;
+    // if agent, we let call-assistant initialize on next open;
+    // if agent currently viewing callAssistant, make sure device init happens
+    if (choice === 'agent') {
+      // if call assistant exists, ensure device ready to accept incoming
+      setTimeout(() => {
+        if (this.callAssistantComp) {
+          this.callAssistantComp.ensureDeviceReadyForRole('agent');
+        }
+      }, 50);
+    }
   }
 
   toggleChatbot() {
@@ -36,16 +55,16 @@ export class AppComponent {
 
   toggleSidebar() { this.isSidebarCollapsed = !this.isSidebarCollapsed; }
 
-changeView(view: string) {
-  if (view === 'newChat') {
-    this.createNewSession();   // create fresh session
-    this.currentView = 'chat'; // open chat window
-  } else {
-    this.currentView = view;   // ✅ allow faqs, callAssistant, history
-  }
+  changeView(view: string) {
+    if (view === 'newChat') {
+      this.createNewSession();   // create fresh session
+      this.currentView = 'chat'; // open chat window
+    } else {
+      this.currentView = view;   // ✅ allow faqs, callAssistant, history
+    }
 
-  if (this.isListening) this.isListening = false;
-}
+    if (this.isListening) this.isListening = false;
+  }
 
 
 
@@ -56,52 +75,52 @@ changeView(view: string) {
     this.currentSession = session;
     this.currentView = 'chat';
   }
-onSessionUpdated(updatedSession: any) {
-  // Don't store empty sessions (only "bot hello" exists)
-  const hasUserMessage = updatedSession.messages.some((msg: any) => msg.sender === 'user');
+  onSessionUpdated(updatedSession: any) {
+    // Don't store empty sessions (only "bot hello" exists)
+    const hasUserMessage = updatedSession.messages.some((msg: any) => msg.sender === 'user');
 
-  // Update title only if it's still default "New Chat"
-  if (updatedSession.title === 'New Chat' && hasUserMessage) {
-    const firstUserMsg = updatedSession.messages.find((msg: any) => msg.sender === 'user');
-    if (firstUserMsg) {
-      if (firstUserMsg.text) {
-        updatedSession.title = firstUserMsg.text.length > 30
-          ? firstUserMsg.text.substring(0, 30) + '...'
-          : firstUserMsg.text;
-      } else if (firstUserMsg.fileName) {
-        updatedSession.title = firstUserMsg.fileName;
+    // Update title only if it's still default "New Chat"
+    if (updatedSession.title === 'New Chat' && hasUserMessage) {
+      const firstUserMsg = updatedSession.messages.find((msg: any) => msg.sender === 'user');
+      if (firstUserMsg) {
+        if (firstUserMsg.text) {
+          updatedSession.title = firstUserMsg.text.length > 30
+            ? firstUserMsg.text.substring(0, 30) + '...'
+            : firstUserMsg.text;
+        } else if (firstUserMsg.fileName) {
+          updatedSession.title = firstUserMsg.fileName;
+        }
       }
     }
-  }
 
-  this.currentSession = updatedSession;
+    this.currentSession = updatedSession;
 
-  if (hasUserMessage) {
-    const index = this.sessionHistory.findIndex(s => s.id === updatedSession.id);
-    if (index !== -1) {
-      this.sessionHistory[index] = updatedSession;
-    } else {
-      this.sessionHistory.unshift(updatedSession);
+    if (hasUserMessage) {
+      const index = this.sessionHistory.findIndex(s => s.id === updatedSession.id);
+      if (index !== -1) {
+        this.sessionHistory[index] = updatedSession;
+      } else {
+        this.sessionHistory.unshift(updatedSession);
+      }
+      this.saveSessionHistory();
     }
-    this.saveSessionHistory();
   }
-}
 
-createNewSession() {
-  // 👉 Don't push to history immediately
-  const newSession = {
-    id: Date.now(),
-    title: 'New Chat',
-    messages: [
-      { sender: 'bot', text: 'Hello! How can I assist you today?', timestamp: new Date().toISOString(), feedback: null }
-    ],
-    date: new Date(),
-    lastUpdated: new Date()
-  };
-  this.currentSession = newSession;
-  // ⚠️ sessionHistory.unshift(newSession) REMOVED
-  // ⚠️ this.saveSessionHistory() REMOVED
-}
+  createNewSession() {
+    // 👉 Don't push to history immediately
+    const newSession = {
+      id: Date.now(),
+      title: 'New Chat',
+      messages: [
+        { sender: 'bot', text: 'Hello! How can I assist you today?', timestamp: new Date().toISOString(), feedback: null }
+      ],
+      date: new Date(),
+      lastUpdated: new Date()
+    };
+    this.currentSession = newSession;
+    // ⚠️ sessionHistory.unshift(newSession) REMOVED
+    // ⚠️ this.saveSessionHistory() REMOVED
+  }
 
 
   loadSessionHistory() {

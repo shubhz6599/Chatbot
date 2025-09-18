@@ -313,3 +313,78 @@
 .erase-btn:hover {
   background: #e0e0e0;
 } */
+/* append near top or end of existing call-assistant.component.css */
+
+/* Incoming call panel */
+.incoming-panel {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height: 320px;
+}
+
+.incoming-card {
+  background: linear-gradient(145deg, #ffffff, #f9f9f9);
+  padding: 22px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+}
+
+.incoming-card h3 {
+  margin: 0 0 8px 0;
+  color: #e31837;
+}
+
+.incoming-from {
+  color: #555;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.incoming-actions {
+  display:flex;
+  gap:12px;
+  justify-content:center;
+}
+
+.action-accept, .action-reject {
+  padding:10px 14px;
+  border-radius:8px;
+  border:none;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.action-accept {
+  background:#4CAF50;
+  color:white;
+}
+
+.action-reject {
+  background:#e31837;
+  color:white;
+}
+/* Center agent-wait block and make status prominent */
+.agent-wait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;        /* adjust as needed */
+  text-align: center;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Larger status text when centered for agent */
+.agent-wait .status-text {
+font-size: 1.2rem;
+  font-weight: 600;
+  margin: 8px 0;
+  text-align: center;
+}
+

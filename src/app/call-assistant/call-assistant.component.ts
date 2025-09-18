@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { Device as TwilioDevice, Call } from '@twilio/voice-sdk';
@@ -8,13 +8,13 @@ import { Device as TwilioDevice, Call } from '@twilio/voice-sdk';
   templateUrl: './call-assistant.component.html',
   styleUrls: ['./call-assistant.component.css']
 })
-export class CallAssistantComponent implements OnInit, OnDestroy {
+export class CallAssistantComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() role: 'agent' | 'supplier' | null = null; // NEW - role from parent
+
   callSubmitted = false;
-  callStatus = 'Ready';
+  callStatus = 'Ready to receive calls...';
   errorMessage = '';
   isMuted = false;
-  // showKeypad = false;
-  // dialedNumbers: string = '';
   isInitializing = false;
   displayNumber = 'Calling...';
   queueNumber: number = 0;
@@ -34,6 +34,12 @@ export class CallAssistantComponent implements OnInit, OnDestroy {
   private callStartTime?: number;
   private durationInterval?: any;
 
+  // NEW for incoming call handling
+  incomingCall: any = null;
+  showIncomingPanel = false;
+  // add these (paste near other private props)
+  private identity: string = '';      // identity assigned when device is created
+  incomingCaller: string = '';       // friendly name shown in incoming panel
 
   private device?: TwilioDevice;
   private activeCall?: Call;
@@ -49,31 +55,137 @@ export class CallAssistantComponent implements OnInit, OnDestroy {
     } catch {
       // fallback text
     }
+
+    // If role is agent and call-assistant loaded, pre-init device so agent can receive calls
+    if (this.role === 'agent') {
+      console.log('[agent] pre-initializing device on ngOnInit');
+
+      // show friendly ready text immediately (centered via CSS change below)
+      this.callStatus = 'Ready to receive calls...';
+
+      // initialize device in background (do not await to avoid UI block)
+      this.ensureDeviceReady('agent').catch(() => { /* silence */ });
+    }
   }
+
 
   ngOnDestroy() {
     this.teardown();
   }
 
-  private async ensureDeviceReady(): Promise<void> {
+  ngOnChanges(changes: SimpleChanges) {
+    // If role input becomes 'agent', ensure device is ready to receive
+    if (changes['role'] && this.role === 'agent' && !this.device) {
+      console.log('[agent] role changed to agent — initializing device...');
+      this.ensureDeviceReadyForRole('agent').catch(err => {
+        console.error('[agent] ensureDeviceReady error', err);
+        this.errorMessage = err?.message || 'Device init error';
+      });
+    }
+  }
+
+  // NEW: wrapper to allow parent to request initialization for a role
+  async ensureDeviceReadyForRole(role: 'agent' | 'supplier') {
+    // pass role so we request token with incoming=true for agent
+    await this.ensureDeviceReady(role);
+  }
+
+  // Updated ensureDeviceReady to accept role and identity
+  private async ensureDeviceReady(role: 'agent' | 'supplier' = 'supplier'): Promise<void> {
     if (this.device) return;
 
     this.isInitializing = true;
     try {
-      const res: any = await firstValueFrom(this.http.get(`${this.BASE}/api/token`));
+      const identity = role === 'agent' ? 'agent' : `supplier-${Math.floor(Math.random() * 10000)}`;
+      this.identity = identity; // save for later use when dialing
+
+      console.log(`[client] requesting token for identity=${identity}`);
+
+      const res: any = await firstValueFrom(
+        this.http.get(`${this.BASE}/api/token?identity=${identity}`)
+      );
+
+      console.log('[client] /api/token response:', res);
+
       const token = res.token;
+      if (!token) {
+        throw new Error('No token returned from server');
+      }
 
-      this.device = new TwilioDevice(token, { logLevel: 'info' });
+      this.device = new TwilioDevice(token, {
+        logLevel: 'info',
+        allowIncomingWhileBusy: true
+      });
 
-      this.device.on('ready', () => this.callStatus = 'Device ready');
+      // register device so Twilio knows this client is online
+      try {
+        // register returns a promise in SDK V2
+        // await ensures registration attempt happens before we rely on "ready"
+        // If register is not available in your SDK version, remove await and call it without awaiting.
+        // (Some versions auto-register on device creation.)
+        await (this.device as any).register?.();
+      } catch (regErr) {
+        // not fatal — device might auto-register depending on SDK version
+        console.warn('[client] device.register() failed or not present:', regErr);
+      }
+
+      this.device.on('ready', () => {
+        console.log(`[client] Device ready — registered as identity=${identity}`);
+        // show pleasant message for agents
+        this.callStatus = role === 'agent' ? 'Ready to receive calls...' : 'Device ready';
+      });
+
       this.device.on('error', (err: any) => {
-        console.error('Device error', err);
+        console.error('[client] Device error', err);
         this.errorMessage = err?.message || 'Device error';
         this.callStatus = 'Error';
       });
 
+      this.device.on('incoming', (incoming: any) => {
+        console.log('[client] Incoming call event', incoming);
+
+        // try lots of places the caller identity might live
+        const fromParam =
+          incoming?.parameters?.From ||
+          incoming?.parameters?.from ||
+          incoming?.from ||
+          incoming?.caller ||
+          incoming?.args?.From ||
+          '';
+
+        this.incomingCaller = fromParam || 'Unknown';
+
+        // Save incoming call object and show panel
+        this.incomingCall = incoming;
+        this.showIncomingPanel = true;
+        this.callStatus = 'Incoming call';
+
+        // 👇 NEW: handle caller cancelling before agent accepts
+        incoming.on('cancel', () => {
+          console.log('[client] Incoming call cancelled by caller');
+          this.incomingCall = null;
+          this.showIncomingPanel = false;
+          this.callStatus = 'Call Cancelled';
+          setTimeout(() => {
+            this.callStatus = 'Ready to receive calls...';
+          }, 2000);
+        });
+
+        // 👇 NEW: handle early disconnect before accept
+        incoming.on('disconnect', () => {
+          console.log('[client] Incoming call disconnected before answer');
+          this.incomingCall = null;
+          this.showIncomingPanel = false;
+          this.callStatus = 'Call Ended';
+        });
+      });
+
+
       this.device.on('tokenWillExpire', async () => {
-        const refreshed: any = await firstValueFrom(this.http.get(`${this.BASE}/api/token`));
+        console.log('[client] tokenWillExpire — refreshing token for', identity);
+        const refreshed: any = await firstValueFrom(
+          this.http.get(`${this.BASE}/api/token?identity=${identity}`)
+        );
         await this.device?.updateToken(refreshed.token);
       });
     } finally {
@@ -81,8 +193,34 @@ export class CallAssistantComponent implements OnInit, OnDestroy {
     }
   }
 
-  async startBrowserCall() {
+
+
+
+
+  // startBrowserCall now accepts optional role (keeps default behavior when not provided)
+  async startBrowserCall(role: 'agent' | 'supplier' | null = null) {
+    // if role passed explicitly (from parent) set local role
+    if (role) this.role = role;
+
     this.errorMessage = '';
+    // If the user is agent and they press call button — we can show a message (agents typically receive)
+    // But if supplier then keep existing queue+call flow
+    if (this.role === 'agent') {
+      // Agents usually wait for incoming; initialize device and return
+      this.inQueue = false;
+      this.callSubmitted = false;
+      try {
+        debugger
+        await this.ensureDeviceReady('agent');
+        this.callStatus = 'Ready to receive calls...';
+      } catch (err: any) {
+        console.error(err);
+        this.errorMessage = err?.message || 'Initialization failed';
+      }
+      return;
+    }
+
+    // supplier / caller flow (existing "queue" behavior preserved)
     this.inQueue = true;        // only show queue
     this.callSubmitted = false; // hide call screen
 
@@ -97,23 +235,30 @@ export class CallAssistantComponent implements OnInit, OnDestroy {
       if (this.queueNumber <= 1) {
         clearInterval(this.queueInterval);
         this.inQueue = false;
+        // start Twilio call as supplier
         this.startTwilioCall();
       }
     }, 2500); // 2.5s per step
-
   }
 
   private async startTwilioCall() {
     try {
       this.callStatus = 'Initializing…';
-      await this.ensureDeviceReady();
+      await this.ensureDeviceReady(this.role === 'agent' ? 'agent' : 'supplier');
 
-      this.activeCall = await this.device!.connect();
+      if (this.role === 'supplier' || !this.role) {
+        // pass To param so TwiML app will dial a client identity (web -> web)
+        this.activeCall = await this.device!.connect({
+          params: { To: 'agent', From: this.identity || 'supplier' }
+        });
+      } else {
+        // for other roles fallback to default connect (keeps PSTN behavior)
+        this.activeCall = await this.device!.connect();
+      }
 
       this.callSubmitted = true;
       this.callStatus = 'Ringing…';
 
-      // Start timer ONLY when remote accepts
       this.activeCall.on('accept', () => {
         if (this.activeCall?.status() === Call.State.Open) {
           this.callStatus = 'In Call';
@@ -135,26 +280,68 @@ export class CallAssistantComponent implements OnInit, OnDestroy {
   }
 
 
+  // NEW: accept incoming call (agent)
+  acceptIncoming() {
+    if (!this.incomingCall) return;
+    try {
+      this.incomingCall.accept();
+      // set as active call and show call UI
+      this.activeCall = this.incomingCall;
+      this.incomingCall = null;
+      this.showIncomingPanel = false;
+      this.callSubmitted = true;
+      this.callStatus = 'In Call';
+      this.startTimer();
+    } catch (err: any) {
+      console.error('accept error', err);
+      this.errorMessage = err?.message || 'Failed to accept';
+    }
+  }
+
+  // NEW: reject incoming call (agent)
+  rejectIncoming() {
+    if (!this.incomingCall) return;
+    try {
+      this.incomingCall.reject();
+    } catch (err) {
+      console.error('reject error', err);
+    } finally {
+      this.incomingCall = null;
+      this.showIncomingPanel = false;
+      this.callStatus = 'Ready to receive calls...';
+    }
+  }
+
   private updateQueueMessage() {
     const randomIndex = Math.floor(Math.random() * this.queueMessages.length);
     this.currentMessage = this.queueMessages[randomIndex];
   }
 
-
-
   endCall() {
     if (this.activeCall) {
-      this.activeCall.disconnect();
+      try {
+        this.activeCall.disconnect();
+      } catch { }
       this.activeCall = undefined;
     }
+
     this.stopTimer();
     this.callSubmitted = false;
+    // show temporary "Call Ended" message
     this.callStatus = 'Call Ended';
     this.isMuted = false;
-    // this.showKeypad = false;
-    // this.dialedNumbers = '';
-  }
+    this.incomingCall = null;
+    this.showIncomingPanel = false;
 
+    // After 2 seconds, revert to appropriate ready message
+    setTimeout(() => {
+      if (!this.callSubmitted) {
+        this.callStatus = this.role === 'agent' ? 'Ready to receive calls...' : 'Ready';
+        // clear incomingCaller after updating status
+        this.incomingCaller = '';
+      }
+    }, 2000);
+  }
 
 
   private startTimer() {
@@ -172,28 +359,16 @@ export class CallAssistantComponent implements OnInit, OnDestroy {
     this.callDuration = '00:00';
   }
 
-
-
   toggleMute() {
     if (this.activeCall) {
       this.isMuted = !this.isMuted;
-      this.activeCall.mute(this.isMuted);
+      try {
+        this.activeCall.mute(this.isMuted);
+      } catch (err) {
+        console.warn('mute failed', err);
+      }
     }
   }
-
-  // closeKeypad() {
-  //   this.showKeypad = false;
-  //   this.dialedNumbers = ''; // reset entered numbers
-  // }
-
-  // sendDigit(digit: string) {
-  //   this.activeCall?.sendDigits(digit);
-  //   this.dialedNumbers += digit;
-  // }
-  // eraseDigit() {
-  //   this.dialedNumbers = this.dialedNumbers.slice(0, -1);
-  // }
-
 
   private teardown() {
     try {

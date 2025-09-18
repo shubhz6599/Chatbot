@@ -3,12 +3,13 @@
   <!-- Header -->
   <div class="assistant-header" *ngIf="!callSubmitted && !inQueue">
     <h2>Call Assistant</h2>
-    <p class="assistant-subtitle">Call us directly from your browser</p>
+    <p class="assistant-subtitle" *ngIf="role !== 'agent'">Call us directly from your browser</p>
   </div>
 
   <div class="assistant-body">
     <!-- Before Call -->
-    <div *ngIf="!callSubmitted && !inQueue" class="call-form">
+    <!-- Supplier UI (make call) -->
+    <div *ngIf="role === 'supplier' && !callSubmitted && !inQueue && !showIncomingPanel" class="call-form">
       <button class="btn-call" (click)="startBrowserCall()" [disabled]="isInitializing">
         <i class="material-icons">call</i>
       </button>
@@ -21,8 +22,29 @@
       </p>
     </div>
 
+    <!-- Agent UI (wait for calls) -->
+    <div *ngIf="role === 'agent' && !callSubmitted && !showIncomingPanel && !inQueue" class="agent-wait">
+      <p class="status-text" >{{ callStatus }}</p>
+      <p *ngIf="!errorMessage" class="hint">Waiting for incoming calls… keep this page open.</p>
+      <p *ngIf="errorMessage" class="error-text">{{ errorMessage }}</p>
+    </div>
+
+
+    <!-- INCOMING CALL PANEL (AGENT) -->
+    <div *ngIf="showIncomingPanel && incomingCall" class="incoming-panel">
+      <div class="incoming-card">
+        <h3>Incoming call</h3>
+        <p class="incoming-from">From: {{ incomingCaller || 'Unknown' }}</p>
+        <div class="incoming-actions">
+          <button class="action-accept" (click)="acceptIncoming()"><i class="material-icons">call</i> Accept</button>
+          <button class="action-reject" (click)="rejectIncoming()"><i class="material-icons">call_end</i>
+            Reject</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Queue Screen -->
-    <div *ngIf="inQueue && !callSubmitted" class="queue-screen">
+    <div *ngIf="inQueue && !callSubmitted && !showIncomingPanel" class="queue-screen">
       <div class="queue-card">
         <div class="queue-loader"></div>
         <h3>You are in queue: <span class="queue-number">{{ queueNumber }}</span></h3>
@@ -46,49 +68,16 @@
       <p class="status-text">{{ callStatus }}</p>
       <p class="call-duration" *ngIf="callStatus === 'In Call'">{{ callDuration }}</p>
 
-        <!-- Uncomment below for keypad on call screen -->
-      <!-- <div class="dialed-display" [class.has-text]="dialedNumbers.length > 0">
-        {{ dialedNumbers }}
-      </div> -->
-
-
-
       <div class="call-actions">
         <button class="action-btn" (click)="toggleMute()">
           <i class="material-icons">{{ isMuted ? 'mic_off' : 'mic' }}</i>
           <span>Mute</span>
         </button>
 
-        <!-- Uncomment below for keypad on call screen -->
-        <!-- <button class="action-btn" (click)="showKeypad = true">
-          <i class="material-icons">dialpad</i>
-          <span>Keypad</span>
-        </button> -->
-
         <button class="end-btn" (click)="endCall()">
           <i class="material-icons">call_end</i>
         </button>
       </div>
-
-        <!-- Uncomment below for keypad on call screen -->
-      <!-- Keypad -->
-      <!-- <div class="keypad" *ngIf="showKeypad">
-        <button (click)="sendDigit('1')">1</button>
-        <button (click)="sendDigit('2')">2</button>
-        <button (click)="sendDigit('3')">3</button>
-        <button (click)="sendDigit('4')">4</button>
-        <button (click)="sendDigit('5')">5</button>
-        <button (click)="sendDigit('6')">6</button>
-        <button (click)="sendDigit('7')">7</button>
-        <button (click)="sendDigit('8')">8</button>
-        <button (click)="sendDigit('9')">9</button>
-        <button (click)="sendDigit('*')">*</button>
-        <button (click)="sendDigit('0')">0</button>
-        <button (click)="sendDigit('#')">#</button>
-        <button class="erase-btn" (click)="eraseDigit()"><i class="material-icons">close</i></button>
-        <button class="close-keypad" (click)="closeKeypad()">Close</button>
-      </div> -->
-
     </div>
   </div>
 </div>

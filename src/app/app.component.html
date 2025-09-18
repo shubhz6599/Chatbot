@@ -1,4 +1,19 @@
 <div class="app-wrapper">
+
+  <!-- ROLE SELECTION OVERLAY (NEW) -->
+  <div class="role-overlay" *ngIf="!role" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);">
+    <div style="background:#fff;padding:22px;border-radius:12px;max-width:420px;width:92%;text-align:center;">
+      <h3 style="margin:0 0 8px 0;color:#e31837;">Choose your role</h3>
+      <p style="color:#555;margin-bottom:16px;">Select whether you are an <strong>Agent</strong> (receive calls) or a <strong>Supplier</strong> (make calls).</p>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button (click)="setRole('agent')" style="padding:10px 18px;border-radius:8px;border:none;background:#e31837;color:#fff;cursor:pointer;">Agent (receive)</button>
+        <button (click)="setRole('supplier')" style="padding:10px 18px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#333;cursor:pointer;">Supplier (call)</button>
+      </div>
+      <p style="font-size:12px;color:#777;margin-top:12px;">You can change this later by refreshing the page.</p>
+    </div>
+  </div>
+  <!-- END ROLE SELECTION OVERLAY -->
+
   <!-- Minimized Chatbot View -->
   <div class="minimized-chatbot" *ngIf="isMinimized" (click)="toggleChatbot()">
     <div class="floating-robot">
@@ -73,7 +88,7 @@
         </div>
 
         <div *ngIf="currentView === 'callAssistant'" class="h-100">
-          <app-call-assistant></app-call-assistant>
+          <app-call-assistant [role]="role"></app-call-assistant>
         </div>
 
         <div *ngIf="currentView === 'faqs'" class="h-100">
@@ -81,8 +96,9 @@
         </div>
 
 
-        <!-- validator view removed -->
       </div>
+      <!-- validator view removed -->
+    </div>
 
 
   </div>
