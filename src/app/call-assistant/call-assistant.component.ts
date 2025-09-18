@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, Input, OnChanges, SimpleChanges } from '@
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { Device as TwilioDevice, Call } from '@twilio/voice-sdk';
+import { environment } from 'environment';
 
 @Component({
   selector: 'app-call-assistant',
@@ -44,7 +45,7 @@ export class CallAssistantComponent implements OnInit, OnDestroy, OnChanges {
   private device?: TwilioDevice;
   private activeCall?: Call;
 
-  private BASE = 'https://twillio-chatgpt-wrapper-production.up.railway.app';
+  private BASE = environment.twilioBase;
 
   constructor(private http: HttpClient) { }
 
