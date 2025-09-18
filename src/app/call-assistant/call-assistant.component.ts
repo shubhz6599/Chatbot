@@ -44,7 +44,7 @@ export class CallAssistantComponent implements OnInit, OnDestroy, OnChanges {
   private device?: TwilioDevice;
   private activeCall?: Call;
 
-  private BASE = 'twillio-chatgpt-wrapper-production.up.railway.app';
+  private BASE = 'https://twillio-chatgpt-wrapper-production.up.railway.app';
 
   constructor(private http: HttpClient) { }
 
