@@ -84,7 +84,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       this.createNewSession();
     }
     this.updateSession();
-    this.sessionReset.init();
+    // this.sessionReset.init();
   }
 
   ngOnChanges() {
