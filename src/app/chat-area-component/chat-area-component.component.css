@@ -161,8 +161,8 @@
   display: inline-flex;
   gap: 6px;
   padding: 12px 16px;
-  background: var(--card);
-  border: 1px solid var(--border);
+  /* background: var(--card); */
+  /* border: 1px solid var(--border); */
   border-radius: 18px;
   border-bottom-left-radius: 6px;
   backdrop-filter: var(--glass-blur);
@@ -445,7 +445,8 @@ input:disabled { opacity: 0.7; cursor: not-allowed; background-color: var(--bg-s
 .download-button button:hover { transform: translateY(-1px); }
 
 /* preserve message line breaks */
-.message-content { white-space: pre-line; }
+/* Commented this because backend giving html css and it taking lot space */
+/* .message-content { white-space: pre-line; } */
 
 /* responsive */
 @media (max-width: 768px) {
@@ -472,7 +473,7 @@ input:disabled { opacity: 0.7; cursor: not-allowed; background-color: var(--bg-s
   text-decoration: none;
   color: #0b57d0;
 }
-::ng-deep .message-content #callAgent {
+::ng-deep .message-content #callAgent,::ng-deep #purchaseOrder, ::ng-deep #payment, ::ng-deep #po-button {
   background: #e31837; /* brand color */
   color: #fff;
   border: none;
@@ -486,15 +487,32 @@ input:disabled { opacity: 0.7; cursor: not-allowed; background-color: var(--bg-s
   transition: background 0.2s ease-in-out, transform 0.1s ease-in-out;
 }
 
-::ng-deep .message-content #callAgent:hover {
+::ng-deep .message-content #callAgent:hover,::ng-deep #purchaseOrder:hover, ::ng-deep #payment:hover, ::ng-deep #po-button:hover {
   background: #c4142d;
   transform: translateY(-1px);
 }
 
-::ng-deep .message-content #callAgent:active {
+::ng-deep .message-content #callAgent:active,::ng-deep #purchaseOrder:active, ::ng-deep #payment:active, ::ng-deep #po-button:active {
   background: #b51229;
   transform: translateY(0);
 }
+/* Style the API-provided input */
+::ng-deep #lifnr-input {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1.5px solid #ccc;
+  border-radius: 8px;
+  outline: none;
+  width: 50%;           /* full width inside chat bubble */
+  box-sizing: border-box;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+::ng-deep #lifnr-input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
+}
+
 /* Like / Dislike buttons */
 .icon-button.like,
 .icon-button.dislike {
@@ -521,3 +539,119 @@ input:disabled { opacity: 0.7; cursor: not-allowed; background-color: var(--bg-s
 .icon-button.dislike.active {
   color: #ef4444;   /* red for dislike */
 }
+.vendor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vendor-form label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.vendor-form input {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+}
+
+.vendor-form input:focus {
+  border-color: var(--brand);
+  /* box-shadow: var(--ring); */
+}
+
+.vendor-form .submit-btn, .payment-form .submit-btn{
+  align-self: flex-start;
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.vendor-form .submit-btn:hover, .payment-form .submit-btn:hover {
+  background: var(--brand-600);
+}
+.vendor-form .input-field:disabled, .payment-form .submit-btn:disabled {
+  background: #f6f6f6;
+  color: #555;
+  cursor: not-allowed;
+}
+
+.vendor-form .submit-btn:disabled,.payment-form .submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.payment-form {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-700) 100%);
+  color: white;
+  border-radius: 25px;
+  padding: 22px;
+  max-width: 460px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+
+
+
+.date-inputs {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.date-field {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  position: relative;
+}
+
+.date-field label {
+   font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.date-field input[type="date"] {
+  padding: 10px 14px;
+  border-radius: 16px;
+  border: 1px solid lightgrey;
+  font-size: 14px;
+  outline: none;
+  background: rgba(255,255,255,0.95);
+  color: #1e293b;
+  font-weight: 500;
+  /* box-shadow: 0 4px 12px rgba(0,0,0,0.12); */
+  transition: all 0.3s ease;
+}
+
+.date-field input[type="date"]:focus {
+  box-shadow: 0 0 8px rgba(255,255,255,0.8), 0 4px 14px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+
+/* Optional: tiny glowing effect around form when typing */
+.payment-form.typing {
+  animation: pulseGlow 1.5s infinite alternate;
+}
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+  }
+  100% {
+    box-shadow: 0 20px 45px rgba(255,255,255,0.25);
+  }
+}
+

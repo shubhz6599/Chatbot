@@ -25,7 +25,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   uploadedFiles: File[] = [];
   showVoiceAnim: boolean = false;
   showVolume: boolean = true;
-
+  vendorCode: string = '';
   downloadLinks: { [fileName: string]: string } = {};
   // quick suggestions
   initialQuestions = [
@@ -34,7 +34,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     'How can I validate asn file',
     // 'What is your pricing?'
   ];
-likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
+  likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
 
   // dynamic suggestions (speech)
   dynamicSuggestions: string[] = [];
@@ -281,10 +281,130 @@ likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
 
   handleHtmlClick(event: Event) {
     const target = event.target as HTMLElement;
-    if (target && target.id === 'callAgent') {
-      this.triggerCall(); // ✅ call the same function as before
+
+    if (target.tagName.toLowerCase() === 'button') {
+      // Find parent .message-content div
+      const parentDiv = target.closest('.message-content') as HTMLElement;
+      if (parentDiv) {
+        // Disable all buttons inside this message
+        const buttons = parentDiv.querySelectorAll('button');
+        buttons.forEach(btn => {
+          // Using property directly
+          (btn as HTMLButtonElement).disabled = true;
+          // Add class for styling
+          btn.classList.add('disabled-btn');
+          // Optional: disable pointer events
+          btn.style.pointerEvents = 'none';
+          btn.style.opacity = '0.6'; // visual feedback
+        });
+      }
+
+      // Execute action
+      switch (target.id) {
+        case 'callAgent':
+          this.triggerCall();
+          break;
+        case 'purchaseOrder':
+          this.sendData('Purchase Order');
+          break;
+        case 'payment':
+          this.sendData('Payment');
+          break;
+      }
     }
   }
+
+
+
+
+  submitVendorCode(messageIndex: number) {
+    const msg = this.messages[messageIndex];
+
+    if (!msg.vendorCode?.trim()) return;
+    msg.isSubmitted = true;       // disable input
+    msg.typing = true;
+    const enteredCode = msg.vendorCode.trim();
+
+
+
+    // Call your API if needed
+    const apiMsg = `Purchase Order Report DATA vendor Number ${enteredCode}`;
+    this.chatService.askQuestion(apiMsg, []).subscribe({
+      next: (res: any) => {
+        if (res.answer === 'PURCHASE_ORDER_GENERATE_PROMPT') {
+          // keep vendor input visible
+          // no need to push another vendorPrompt
+        } else {
+          this.messages.push({
+            sender: 'bot',
+            text: res.answer,
+            is_html: res.is_html,
+            type: 'text',
+            timestamp: new Date()
+          });
+        }
+        this.scrollToMessage(this.messages.length - 1);
+        msg.typing = false;
+
+      }
+    });
+  }
+
+
+  private animateUserMessage(text: string): Promise<void> {
+    return new Promise((resolve) => {
+      let i = 0;
+      const userMessage = { sender: 'user', text: '', type: 'text', timestamp: new Date() };
+      this.messages.push(userMessage);
+      this.updateSession();
+
+      const interval = setInterval(() => {
+        userMessage.text += text.charAt(i);
+        i++;
+        this.updateSession();
+
+        if (i >= text.length) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 30); // typewriter effect speed
+    });
+  }
+
+  submitPaymentDate(messageIndex: number) {
+    const msg = this.messages[messageIndex];
+
+    if (!msg.fromDate || !msg.toDate) {
+      this.showError('Please select both From and To dates');
+      return;
+    }
+    msg.isSubmitted = true;       // disable input
+    msg.typing = true;
+
+    const from = msg.fromDate;
+    const to = msg.toDate;
+    // const userMsgText = `User selected payment report dates: ${from} to ${to}`;
+
+    // Animate user message
+    // this.animateUserMessage(userMsgText).then(() => this.scrollToMessage(this.messages.length - 1));
+
+    // Call API with selected date range
+    const apiMsg = `Payment Report with Clear date ${from} to ${to}`;
+    this.chatService.askQuestion(apiMsg, []).subscribe({
+      next: (res: any) => {
+        this.messages.push({
+          sender: 'bot',
+          text: res.answer,
+          is_html: res.is_html,
+          type: 'text',
+          timestamp: new Date()
+        });
+        this.scrollToMessage(this.messages.length - 1);
+        msg.typing = false;
+      }
+    });
+  }
+
 
   // main send
   sendMessage(isFromMic: boolean = false) {
@@ -334,24 +454,43 @@ likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
         if (isFromMic) {
           this.speak(botText);
         }
-        if (res?.is_html) {
+
+        // check for PURCHASE_ORDER_GENERATE_PROMPT
+        if (res?.answer === 'PURCHASE_ORDER_GENERATE_PROMPT') {
           this.messages.push({
             sender: 'bot',
-            text: res.answer || 'Talk to a live agent',
-            type: 'call',
+            type: 'vendorPrompt',  // custom type
             timestamp: new Date()
           });
+        } else if (res?.answer === 'PAYMENT_REPORT_GENERATE_PROMPT') {
+          this.messages.push({
+            sender: 'bot',
+            type: 'paymentPrompt',
+            timestamp: new Date(),
+            fromDate: '',
+            toDate: ''
+          });
         } else {
-          await this.animateBotResponse(res?.answer || "Sorry, I couldn't find an answer.");
-          if (isFromMic) {
-            this.speak(res?.answer || "Sorry, I couldn't find an answer.");
+          const isHtmlResponse = res?.is_html || /<\/?[a-z][\s\S]*>/i.test(res?.answer);
+          if (isHtmlResponse) {
+            this.messages.push({
+              sender: 'bot',
+              text: res.answer || 'Talk to a live agent',
+              type: 'call',
+              is_html: res.is_html,
+              timestamp: new Date()
+            });
+          } else {
+            await this.animateBotResponse(res?.answer || "Sorry, I couldn't find an answer.");
+            if (isFromMic) {
+              this.speak(res?.answer || "Sorry, I couldn't find an answer.");
+            }
           }
         }
 
         this.isWaitingForBot = false;
         this.updateSession();
         this.scrollToMessage(this.messages.length - 1);
-        // auto-scroll after typing done
         setTimeout(() => {
           const c = document.querySelector('.chat-messages') as HTMLElement | null;
           if (c) c.scrollTop = c.scrollHeight;
@@ -364,14 +503,13 @@ likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
           text: 'Error fetching answer. Please try again.',
           timestamp: new Date()
         });
-        if (isFromMic) {
-          this.speak('Error fetching answer. Please try again.');
-        }
+        if (isFromMic) this.speak('Error fetching answer. Please try again.');
         this.isWaitingForBot = false;
         this.updateSession();
         this.scrollToMessage(this.messages.length - 1);
       }
     });
+
 
   }
 
@@ -393,7 +531,57 @@ likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
       timestamp: new Date()
     });
   }
+  // sendDummyResponse(isHtml: boolean = false) {
+  //   const dummyRes = isHtml
+  //     ? {
 
+  //       "answer": "<div class=\"bot-message\">\n  <p>You can get the following reports:</p>\n  <div class=\"report-options\">\n    <button onclick=\"sendData('Purchase Order')\">\ud83d\udcc4 Purchase Order</button>\n    <button onclick=\"sendData('Payment')\" disabled>\ud83d\udcb0 Payment</button>\n  </div>\n  <p class=\"hint\">\ud83d\udc49 Please specify which report you need.</p>\n</div>\n\n<style>\n  .bot-message {\n    background: #f1f5f9;\n    padding: 10px;\n    border-radius: 10px;\n    margin: 8px 0;\n    max-width: 80%;\n  }\n\n  .report-options {\n    display: flex;\n    gap: 8px;\n    margin: 8px 0;\n    flex-wrap: wrap;\n  }\n\n  .report-options button {\n    background: #2563eb;\n    color: white;\n    border: none;\n    padding: 8px 12px;\n    border-radius: 8px;\n    cursor: pointer;\n    font-size: 14px;\n    transition: background 0.2s;\n  }\n\n  .report-options button:hover:enabled {\n    background: #1d4ed8;\n  }\n\n  .report-options button:disabled {\n    background: #94a3b8; /* gray color for disabled */\n    cursor: not-allowed;\n  }\n\n  .hint {\n    font-size: 12px;\n    color: #64748b;\n    margin-top: 4px;\n  }\n</style>",
+  //       is_html: true
+
+  //     }
+
+  //     : {
+  //       answer:
+  //         'Dear User, Hello! 👋 How can I assist you today? If you have any questions or need support regarding CCK/ACK maintenance, please let me know.',
+  //       is_html: false
+  //     };
+
+  //   this.messages.push({
+  //     sender: 'bot',
+  //     text: dummyRes.answer,
+  //     is_html: dummyRes.is_html,
+  //     timestamp: new Date()
+  //   });
+
+  //   this.updateSession();
+  // }
+
+
+  sendData(reportName: string) {
+    // mimic typing a message
+    this.userInput = reportName + ' Report Generate Request';
+    this.sendMessage(); // call your existing sendMessage()
+  }
+
+  sendReportInput() {
+    const lifnrEl = document.getElementById('lifnr-input') as HTMLInputElement;
+    if (!lifnrEl || !lifnrEl.value.trim()) {
+      alert('Invalid Entry');
+      return;
+    }
+
+    this.userInput = "Purchase Order Report DATA LIFNR Number " + lifnrEl.value.trim();
+    this.sendMessage();
+
+    lifnrEl.disabled = true;
+    lifnrEl.id = 'NA-BT';
+
+    const poBtn = document.getElementById('pobutton') as HTMLButtonElement;
+    if (poBtn) {
+      poBtn.disabled = true;
+      poBtn.id = 'NA-TX';
+    }
+  }
 
 
   // validation (ASN still supported here)
@@ -782,18 +970,18 @@ likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
           clearInterval(interval);
           resolve();
         }
-      }, 30); // ⏱️ adjust speed (ms per character)
+      }, 10); // ⏱️ adjust speed (ms per character)
     });
   }
-setFeedback(message: any, type: 'like' | 'dislike') {
-  if (message.feedback === type) {
-    message.feedback = null; // toggle off
-  } else {
-    message.feedback = type;
-  }
+  setFeedback(message: any, type: 'like' | 'dislike') {
+    if (message.feedback === type) {
+      message.feedback = null; // toggle off
+    } else {
+      message.feedback = type;
+    }
 
-  this.sessionUpdated.emit(this.session);
-}
+    this.sessionUpdated.emit(this.session);
+  }
 
 
 

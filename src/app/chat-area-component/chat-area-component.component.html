@@ -87,18 +87,46 @@
             {{ message.validationResult }}
           </div>
         </div>
+  <!-- Vendor Code Prompt -->
+        <div *ngIf="message.type === 'vendorPrompt'" class="message-content vendor-form">
+          <label [for]="'vendorCode-' + i">Vendor Code</label>
+          <input [id]="'vendorCode-' + i" [(ngModel)]="message.vendorCode" placeholder="Please enter vendor code" [disabled]="message.isSubmitted"/>
+          <button class="submit-btn" (click)="submitVendorCode(i)" [disabled]="message.isSubmitted">Submit</button>
+        </div>
+        <!-- Payment Date Prompt -->
+        <div *ngIf="message.type === 'paymentPrompt'" class="message-content payment-form">
 
+          <div class="date-inputs">
+            <div class="date-field">
+              <label>From Date</label>
+              <input type="date" [(ngModel)]="message.fromDate" [disabled]="message.isSubmitted"  />
+            </div>
+            <div class="date-field">
+              <label>To Date</label>
+              <input type="date" [(ngModel)]="message.toDate" [disabled]="message.isSubmitted" />
+            </div>
+          </div>
+
+          <button class="submit-btn" (click)="submitPaymentDate(i)" [disabled]="message.isSubmitted">
+           submit
+          </button>
+
+        </div>
         <!-- Typing indicator -->
         <div *ngIf="message.typing" class="typing-indicator">
           <span></span><span></span><span></span>
         </div>
 
         <!-- Text -->
-        <div *ngIf="!message.typing && message.type !== 'file'" class="message-content"
-          [innerHTML]="formatMessage(message.text, message.is_html)" (click)="handleHtmlClick($event)">
+        <div
+          *ngIf="!message.typing && message.type !== 'file' && message.type !== 'vendorPrompt' && message.type !=='paymentPrompt'"
+          class="message-content" [innerHTML]="formatMessage(message.text, message.is_html)"
+          (click)="handleHtmlClick($event)" [attr.contenteditable]="false">
         </div>
 
-        <div *ngIf="message.sender === 'bot' && !message.typing" class="action-buttons" [class.last-bot]="i === messages.length -1">
+        <div
+          *ngIf="message.sender === 'bot' && !message.typing && message.type !== 'vendorPrompt' && message.type !=='paymentPrompt'"
+          class="action-buttons" [class.last-bot]="i === messages.length -1">
 
           <!-- Speech buttons only for last bot message -->
           <button class="icon-button speak" (click)="speak(message.text)"
@@ -111,7 +139,7 @@
           </button>
 
           <!-- Like / Dislike for all bot messages -->
-          <button class="icon-button like" [class.active]="message.feedback === 'like'"
+          <!-- <button class="icon-button like" [class.active]="message.feedback === 'like'"
             (click)="setFeedback(message, 'like')">
             <i class="material-icons">thumb_up</i>
           </button>
@@ -119,8 +147,15 @@
           <button class="icon-button dislike" [class.active]="message.feedback === 'dislike'"
             (click)="setFeedback(message, 'dislike')">
             <i class="material-icons">thumb_down</i>
-          </button>
+          </button> -->
         </div>
+
+
+
+
+
+
+
 
 
         <!-- Actions -->
@@ -142,7 +177,7 @@
     <i class="material-icons">download</i> Download with Errors
   </button>
 </div> -->
-        <div class="message-time">{{  message.timestamp | date:'shortTime' }}</div>
+        <div class="message-time">{{ message.timestamp | date:'shortTime' }}</div>
       </div>
     </ng-container>
   </div>
@@ -207,6 +242,10 @@
       <i class="material-icons">send</i>
     </button>
     <!-- <button class="btn-test" (click)="sendDummyResponse()">💡 Test Call Agent Response</button> -->
+
+    <!-- <button class="btn-test" (click)="sendDummyResponse(false)">💡 Test Text</button>
+    <button class="btn-test" (click)="sendDummyResponse(true)">💡 Test HTML</button> -->
+
   </div>
 
 
