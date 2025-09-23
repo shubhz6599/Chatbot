@@ -46,7 +46,6 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   // suggestion bank
   allQuestions: string[] = [
     'How to reset password for Msetu?',
-    'How to reset password for Msetu?',
     'How to resolve NO SCHEDULE LINE AVAILABLE?',
     'How to resolve CCK NOT MAINTAIN?',
     'How to resolve SBU/AFS PLANT DELIVERY TIME error?',
