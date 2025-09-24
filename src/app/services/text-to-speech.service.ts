@@ -27,7 +27,7 @@ export class TextToSpeechService {
       this.stop(); // cancel any ongoing speech
 
       const utterance = new SpeechSynthesisUtterance(plain);
-      utterance.lang = 'en-UK';
+      utterance.lang = this.detectLanguage(plain);
       utterance.pitch = 1;
       utterance.rate = 1;
       utterance.volume = 1;
@@ -57,14 +57,16 @@ export class TextToSpeechService {
       window.speechSynthesis.cancel();
     }
   }
+    private detectLanguage(text: string): string {
+    // If contains Devanagari (Hindi/Marathi)
+    if (/[\u0900-\u097F]/.test(text)) {
+      return 'hi-IN'; // works for Hindi & Marathi
+    }
 
-  /**
-   * Convert HTML or mixed text to visible plain text:
-   * - If string contains HTML, parse with DOMParser and use textContent.
-   * - Decode HTML entities.
-   * - Remove scripts/styles.
-   * - Collapse whitespace/newlines to single spaces.
-   */
+    // Default fallback English
+    return 'en-US';
+  }
+
   private extractVisibleText(input: string): string {
     if (!input) return '';
 

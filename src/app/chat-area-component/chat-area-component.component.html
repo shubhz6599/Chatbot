@@ -83,14 +83,15 @@
             </div>
           </div>
 
-          <div *ngIf="message.validationResult" class="validation-result">
-            {{ message.validationResult }}
-          </div>
+          <div *ngIf="message.validationResult" class="validation-result"
+            [innerHTML]="formatMessage(message.validationResult, message.is_html)"></div>
+
         </div>
-  <!-- Vendor Code Prompt -->
+        <!-- Vendor Code Prompt -->
         <div *ngIf="message.type === 'vendorPrompt'" class="message-content vendor-form">
           <label [for]="'vendorCode-' + i">Vendor Code</label>
-          <input [id]="'vendorCode-' + i" [(ngModel)]="message.vendorCode" placeholder="Please enter vendor code" [disabled]="message.isSubmitted"/>
+          <input [id]="'vendorCode-' + i" [(ngModel)]="message.vendorCode" placeholder="Please enter vendor code"
+            [disabled]="message.isSubmitted" />
           <button class="submit-btn" (click)="submitVendorCode(i)" [disabled]="message.isSubmitted">Submit</button>
         </div>
         <!-- Payment Date Prompt -->
@@ -99,7 +100,7 @@
           <div class="date-inputs">
             <div class="date-field">
               <label>From Date</label>
-              <input type="date" [(ngModel)]="message.fromDate" [disabled]="message.isSubmitted"  />
+              <input type="date" [(ngModel)]="message.fromDate" [disabled]="message.isSubmitted" />
             </div>
             <div class="date-field">
               <label>To Date</label>
@@ -108,7 +109,7 @@
           </div>
 
           <button class="submit-btn" (click)="submitPaymentDate(i)" [disabled]="message.isSubmitted">
-           submit
+            submit
           </button>
 
         </div>
@@ -127,6 +128,11 @@
         <div
           *ngIf="message.sender === 'bot' && !message.typing && message.type !== 'vendorPrompt' && message.type !=='paymentPrompt'"
           class="action-buttons" [class.last-bot]="i === messages.length -1">
+
+          <button class="icon-button cancel-typing" (click)="cancelBotTyping()"
+            *ngIf="message.isAnimating && !message.isCanceled && i === messages.length - 1">
+            <i class="material-icons">stop_circle</i>
+          </button>
 
           <!-- Speech buttons only for last bot message -->
           <button class="icon-button speak" (click)="speak(message.text)"
@@ -165,11 +171,11 @@
             {{ action.text }}
           </button>
         </div>
-        <div *ngIf="message.hasErrors" class="download-button">
+        <!-- <div *ngIf="message.hasErrors" class="download-button">
           <button (click)="downloadFileWithErrors(message.fileName)" class="action-button">
             <i class="material-icons">download</i> Download File with Error Highlights
           </button>
-        </div>
+        </div> -->
 
         <!-- In the file message section -->
         <!-- <div *ngIf="message.hasErrors" class="download-button">

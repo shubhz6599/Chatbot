@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, OnChanges, NgZone } from '@angular/core';
 import { SpeechService } from '../services/speech.service';
 import { Subscription } from 'rxjs';
-import { ValidationResult, ValidationService } from '../services/validation.service';
+import { ValidationService } from '../services/validation.service';
 import * as XLSX from 'xlsx';
 import { ChatService } from '../services/chat.service';
 import { TextToSpeechService } from '../services/text-to-speech.service';
@@ -27,6 +27,11 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   showVolume: boolean = true;
   vendorCode: string = '';
   downloadLinks: { [fileName: string]: string } = {};
+  // animation / cancellation helpers
+  currentBotInterval: any = null;
+  currentBotMessageIndex: number | null = null;
+  cancelAnimationRequested: boolean = false;
+
   // quick suggestions
   initialQuestions = [
     'How can I change my email/Phone',
@@ -403,6 +408,105 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       }
     });
   }
+  private validateFiles(fileType: string): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (!this.uploadedFiles.length) {
+        this.messages.push({
+          sender: 'bot',
+          text: `⚠️ Please upload a ${fileType} file first.`,
+          timestamp: new Date()
+        });
+        this.updateSession();
+        resolve();
+        return;
+      }
+
+      // process each uploaded file
+      let pending = this.uploadedFiles.length;
+      for (const file of this.uploadedFiles) {
+        const idx = this.messages.findIndex(m => m.type === 'file' && m.fileName === file.name);
+
+        // mark UI processing state
+        if (idx !== -1) {
+          this.messages[idx].isProcessing = true;
+          this.messages[idx].uploading = false;
+          this.updateSession();
+        }
+
+        // Call backend via ValidationService (expects Observable)
+        this.validationService.validateASNFile(file).subscribe({
+          next: (res: any) => {
+            const answer: string = res?.answer || '';
+            // backend sometimes returns is_html, but sometimes a different key (like ts_html) -> handle both
+            const resIsHtml = (typeof res?.is_html !== 'undefined') ? res.is_html
+              : (typeof res?.ts_html !== 'undefined') ? res.ts_html
+                : /<\/?[a-z][\s\S]*>/i.test(answer); // fallback detect html
+
+            // update file tile
+            if (idx !== -1) {
+              this.messages[idx].isProcessing = false;
+              this.messages[idx].validationResult = answer;
+              this.messages[idx].is_html = !!resIsHtml;
+
+              // simple heuristic for isValid: treat as valid if answer mentions "success"
+              const lower = (answer || '').toLowerCase();
+              this.messages[idx].isValid = lower.includes('success') || lower.includes('validated successfully');
+
+              this.updateSession();
+            }
+
+            // push bot message with API answer (render HTML when resIsHtml is true)
+            this.messages.push({
+              sender: 'bot',
+              text: answer || `Validation completed for ${file.name}.`,
+              is_html: !!resIsHtml,
+              timestamp: new Date()
+            });
+
+            // if backend returned s3_url, show a clickable download link as an HTML bot message
+            // if (res?.s3_url) {
+            //   const linkHtml = `<a href="${res.s3_url}" target="_blank" rel="noopener noreferrer">📥 Download validated ${fileType} file</a>`;
+            //   this.messages.push({
+            //     sender: 'bot',
+            //     text: linkHtml,
+            //     is_html: true,
+            //     timestamp: new Date()
+            //   });
+            // }
+
+            this.updateSession();
+            this.scrollToMessage(this.messages.length - 1);
+
+            pending--;
+            if (pending === 0) resolve();
+          },
+          error: (err) => {
+            // mark file tile as failed
+            if (idx !== -1) {
+              this.messages[idx].isProcessing = false;
+              this.messages[idx].validationResult = '❌ Validation failed (network or server error)';
+              this.messages[idx].is_html = false;
+              this.messages[idx].isValid = false;
+              this.updateSession();
+            }
+
+            this.messages.push({
+              sender: 'bot',
+              text: '⚠️ Error validating ASN file. Please try again later.',
+              is_html: false,
+              timestamp: new Date()
+            });
+            this.updateSession();
+
+            pending--;
+            if (pending === 0) resolve();
+          }
+        });
+      }
+    });
+  }
+
+
 
 
   // main send
@@ -432,84 +536,118 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       });
       return;
     }
+    else if ((userMessageLower.includes('create') && userMessageLower.includes('asn'))
+      || (userMessageLower.includes('creation') && userMessageLower.includes('asn'))
+    || (userMessageLower.includes('generate') && userMessageLower.includes('asn'))
+    || (userMessageLower.includes('generation') && userMessageLower.includes('asn'))
+  ) {
 
-    // --- Otherwise, QnA API call ---
-    const sentText = this.userInput;
-    const files = [...this.uploadedFiles]; // copy array
-
-    this.userInput = '';
-    this.dynamicSuggestions = [];
-    this.isWaitingForBot = true;
-
-    // Typing indicator
-    this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
-    this.updateSession();
-
-    this.chatService.askQuestion(sentText, files).subscribe({
-      next: async (res) => {
-        // remove typing indicator
-        this.messages = this.messages.filter(m => !m.typing);
-        const botText = res?.answer || "Sorry, I couldn't find an answer.";
-        if (isFromMic) {
-          this.speak(botText);
-        }
-
-        // check for PURCHASE_ORDER_GENERATE_PROMPT
-        if (res?.answer === 'PURCHASE_ORDER_GENERATE_PROMPT') {
+      if (this.uploadedFiles.length > 0) {
+        const file = this.uploadedFiles[0];
+        this.validationService.createASNFile(file).subscribe((res) => {
           this.messages.push({
             sender: 'bot',
-            type: 'vendorPrompt',  // custom type
+            text: res.answer || '✅ ASN created successfully.',
+            is_html: res.is_html || false,
             timestamp: new Date()
           });
-        } else if (res?.answer === 'PAYMENT_REPORT_GENERATE_PROMPT') {
-          this.messages.push({
-            sender: 'bot',
-            type: 'paymentPrompt',
-            timestamp: new Date(),
-            fromDate: '',
-            toDate: ''
-          });
-        } else {
-          const isHtmlResponse = res?.is_html || /<\/?[a-z][\s\S]*>/i.test(res?.answer);
-          if (isHtmlResponse) {
-            this.messages.push({
-              sender: 'bot',
-              text: res.answer || 'Talk to a live agent',
-              type: 'call',
-              is_html: res.is_html,
-              timestamp: new Date()
-            });
-          } else {
-            await this.animateBotResponse(res?.answer || "Sorry, I couldn't find an answer.");
-            if (isFromMic) {
-              this.speak(res?.answer || "Sorry, I couldn't find an answer.");
-            }
-          }
-        }
 
-        this.isWaitingForBot = false;
-        this.updateSession();
-        this.scrollToMessage(this.messages.length - 1);
-        setTimeout(() => {
-          const c = document.querySelector('.chat-messages') as HTMLElement | null;
-          if (c) c.scrollTop = c.scrollHeight;
-        }, 0);
-      },
-      error: (err) => {
-        this.messages = this.messages.filter(m => !m.typing);
+          // if (res?.s3_url) {
+          //   this.messages.push({
+          //     sender: 'bot',
+          //     text: `<a href="${res.s3_url}" target="_blank" rel="noopener noreferrer">📥 Download created ASN</a>`,
+          //     is_html: true,
+          //     timestamp: new Date()
+          //   });
+          // }
+        });
+      } else {
         this.messages.push({
           sender: 'bot',
-          text: 'Error fetching answer. Please try again.',
+          text: '⚠️ Please upload an ASN file before creation.',
           timestamp: new Date()
         });
-        if (isFromMic) this.speak('Error fetching answer. Please try again.');
-        this.isWaitingForBot = false;
-        this.updateSession();
-        this.scrollToMessage(this.messages.length - 1);
       }
-    });
+      this.userInput = '';
+    }
+    else {
+      // --- Otherwise, QnA API call ---
+      const sentText = this.userInput;
+      const files = [...this.uploadedFiles]; // copy array
 
+      this.userInput = '';
+      this.dynamicSuggestions = [];
+      this.isWaitingForBot = true;
 
+      // Typing indicator
+      this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
+      this.updateSession();
+
+      this.chatService.askQuestion(sentText, files).subscribe({
+        next: async (res) => {
+          // remove typing indicator
+          this.messages = this.messages.filter(m => !m.typing);
+          const botText = res?.answer || "Sorry, I couldn't find an answer.";
+
+          // check for PURCHASE_ORDER_GENERATE_PROMPT
+          if (res?.answer === 'PURCHASE_ORDER_GENERATE_PROMPT') {
+            this.messages.push({
+              sender: 'bot',
+              type: 'vendorPrompt',  // custom type
+              timestamp: new Date()
+            });
+          } else if (res?.answer === 'PAYMENT_REPORT_GENERATE_PROMPT') {
+            this.messages.push({
+              sender: 'bot',
+              type: 'paymentPrompt',
+              timestamp: new Date(),
+              fromDate: '',
+              toDate: ''
+            });
+          } else {
+            const isHtmlResponse = res?.is_html || /<\/?[a-z][\s\S]*>/i.test(res?.answer);
+            if (isHtmlResponse) {
+              this.messages.push({
+                sender: 'bot',
+                text: res.answer || 'Talk to a live agent',
+                type: 'call',
+                is_html: res.is_html,
+                timestamp: new Date()
+              });
+            } else {
+              await this.animateBotResponse(res?.answer || "Sorry, I couldn't find an answer.");
+              if (isFromMic && !this.cancelAnimationRequested) {
+                this.speak(res?.answer || "Sorry, I couldn't find an answer.");
+              }
+
+              // reset cancel flag for next response
+              this.cancelAnimationRequested = false;
+            }
+          }
+
+          this.isWaitingForBot = false;
+          this.updateSession();
+          this.scrollToMessage(this.messages.length - 1);
+          setTimeout(() => {
+            const c = document.querySelector('.chat-messages') as HTMLElement | null;
+            if (c) c.scrollTop = c.scrollHeight;
+          }, 0);
+        },
+        error: (err) => {
+          this.messages = this.messages.filter(m => !m.typing);
+          this.messages.push({
+            sender: 'bot',
+            text: 'Error fetching answer. Please try again.',
+            timestamp: new Date()
+          });
+          if (isFromMic) this.speak('Error fetching answer. Please try again.');
+          this.isWaitingForBot = false;
+          this.updateSession();
+          this.scrollToMessage(this.messages.length - 1);
+        }
+      });
+
+    }
   }
 
   triggerCall() {
@@ -583,133 +721,6 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   }
 
 
-  // validation (ASN still supported here)
-  async validateFiles(fileType: string = 'ASN') {
-    if (this.uploadedFiles.length === 0) {
-      this.messages.push({
-        sender: 'bot',
-        text: 'No files uploaded. Please upload files to validate.',
-        timestamp: new Date()
-      });
-      this.updateSession();
-      return;
-    }
-
-    // show typing
-    this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
-    this.updateSession();
-
-    for (const file of this.uploadedFiles) {
-      try {
-        // ✅ Step 1: Validate file extension
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        const validExts = ['csv', 'xls', 'xlsx'];
-
-        if (!ext || !validExts.includes(ext)) {
-          // update file tile if present
-          const fileMessageIndex = this.messages.findIndex(
-            msg => msg.type === 'file' && msg.fileName === file.name
-          );
-          if (fileMessageIndex !== -1) {
-            this.messages[fileMessageIndex].isValid = false;
-            this.messages[fileMessageIndex].isProcessing = false;
-            this.messages[fileMessageIndex].validationResult =
-              `✗ Invalid file type for ASN validation. Please upload CSV, XLS, or XLSX only.`;
-          }
-
-          this.messages.push({
-            sender: 'bot',
-            text: `The file "${file.name}" is not a valid type.
-                 For ASN validation, please upload a **CSV, XLS, or XLSX** file.`,
-            timestamp: new Date()
-          });
-          this.updateSession();
-          continue; // ⬅ Skip further validation for this file
-        }
-
-        // ✅ Step 2: Locate UI tile
-        const fileMessageIndex = this.messages.findIndex(
-          msg => msg.type === 'file' && msg.fileName === file.name
-        );
-
-        if (fileMessageIndex !== -1) {
-          this.messages[fileMessageIndex].isProcessing = true;
-          this.messages[fileMessageIndex].uploading = false;
-          this.messages[fileMessageIndex].uploaded = true;
-          this.messages[fileMessageIndex].validationResult = 'Validating...';
-          this.updateSession();
-        }
-
-        // ✅ Step 3: Perform ASN validation
-        let validationResult: ValidationResult;
-        if (fileType === 'ASN') {
-          validationResult = await this.validationService.validateASNFile(file);
-        } else {
-          validationResult = {
-            isValid: false,
-            message: `Unknown file type: ${fileType}`,
-            errors: [`Validation not supported for ${fileType} files`],
-            isProcessing: false
-          };
-        }
-
-
-        if (fileMessageIndex !== -1) {
-          this.messages[fileMessageIndex].isValid = validationResult.isValid;
-          this.messages[fileMessageIndex].isProcessing = false;
-
-          const formattedErrors =
-            validationResult.errors && validationResult.errors.length > 0
-              ? validationResult.errors.join('\n')
-              : '';
-
-          this.messages[fileMessageIndex].validationResult = validationResult.isValid
-            ? `✓ ${file.name} is a valid ${fileType} file.`
-            : `✗ ${file.name} is not a valid ${fileType} file.\n${formattedErrors}`;
-        }
-
-        // Create enhanced file if invalid
-        if (!validationResult.isValid && validationResult.errors && validationResult.errors.length > 0) {
-          this.createEnhancedFileWithErrors(file, validationResult.errors);
-        }
-
-        const errorMessage = validationResult.isValid
-          ? `The file "${file.name}" is a valid ${fileType} file.`
-          : `The file "${file.name}" failed validation:\n${(validationResult.errors || []).join('\n')}`;
-
-        this.messages.push({
-          sender: 'bot',
-          text: errorMessage,
-          timestamp: new Date(),
-          hasErrors: !validationResult.isValid,
-          fileName: file.name
-        });
-        this.updateSession();
-      } catch (error: any) {
-        const idx = this.messages.findIndex(msg => msg.type === 'file' && msg.fileName === file.name);
-        if (idx !== -1) {
-          this.messages[idx].isValid = false;
-          this.messages[idx].isProcessing = false;
-          this.messages[idx].validationResult = `Error: ${error?.message || 'Unknown error'}`;
-        }
-        this.messages.push({
-          sender: 'bot',
-          text: `Error validating file "${file.name}": ${error?.message || 'Unknown error'}`,
-          timestamp: new Date()
-        });
-        this.updateSession();
-      }
-    }
-
-    // remove typing
-    this.messages = this.messages.filter(m => !m.typing);
-    this.updateSession();
-
-    setTimeout(() => {
-      const c = document.querySelector('.chat-messages') as HTMLElement | null;
-      if (c) c.scrollTop = c.scrollHeight;
-    }, 0);
-  }
 
   private scrollToMessage(index: number) {
     setTimeout(() => {
@@ -718,138 +729,6 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 50); // delay so DOM updates first
-  }
-
-
-  // Create enhanced Excel file with error highlights
-  createEnhancedFileWithErrors(file: File, errors: string[]) {
-    try {
-      // Check if XLSX is available
-      if (typeof XLSX === 'undefined') {
-        console.error('XLSX library is not available');
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-
-          // Parse the CSV to get the raw data
-          const rawData: any = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-          // Add error information to the data
-          this.markErrorsInData(rawData, errors);
-
-          // Create a new worksheet with error highlights
-          const newWorksheet = XLSX.utils.aoa_to_sheet(rawData);
-
-          // Apply styling to error cells
-          this.applyErrorStyles(newWorksheet, errors);
-
-          // Create new workbook
-          const newWorkbook = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Validation Results');
-
-          // Generate Excel file
-          const excelBuffer = XLSX.write(newWorkbook, { bookType: 'xlsx', type: 'array' });
-          const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-          // Create download link
-          this.downloadLinks[file.name] = URL.createObjectURL(blob);
-        } catch (error) {
-          console.error('Error creating enhanced file:', error);
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    } catch (error) {
-      console.error('Error in createEnhancedFileWithErrors:', error);
-    }
-  }
-
-  // Mark errors in the data
-  markErrorsInData(data: any[], errors: string[]) {
-    if (!data || data.length === 0) return;
-
-    // Add header for error column if it doesn't exist
-    if (data[0].indexOf('Validation Errors') === -1) {
-      data[0].push('Validation Errors');
-    }
-
-    // Process each row to add error information
-    for (let i = 1; i < data.length; i++) {
-      const rowErrors = errors.filter(error => {
-        const match = error.match(/Cell ([A-Z]+)(\d+):/);
-        if (match) {
-          const rowNum = parseInt(match[2], 10);
-          return rowNum === i + 1; // +1 because Excel rows are 1-indexed and our array is 0-indexed
-        }
-        return false;
-      });
-
-      // Add errors to the row
-      if (data[i].length < data[0].length) {
-        // Pad the row with empty cells if needed
-        while (data[i].length < data[0].length - 1) {
-          data[i].push('');
-        }
-      }
-
-      data[i].push(rowErrors.map(e => e.replace(/Cell [A-Z]+\d+:\s*/, '')).join('; '));
-    }
-  }
-
-  // Apply styles to error cells
-  applyErrorStyles(worksheet: any, errors: string[]) {
-    if (!worksheet || !worksheet['!ref']) return;
-
-    // Define the error style
-    const errorStyle = {
-      fill: { fgColor: { rgb: "FFFF0000" } }, // Red background
-      font: { color: { rgb: "FFFFFFFF" }, bold: true } // White bold text
-    };
-
-    // Apply styles to cells with errors
-    errors.forEach(error => {
-      const match = error.match(/Cell ([A-Z]+)(\d+):/);
-      if (match) {
-        const col = match[1];
-        const row = match[2];
-        const cellAddress = `${col}${row}`;
-
-        // Apply style to the error cell
-        if (!worksheet[cellAddress]) worksheet[cellAddress] = { t: 's', v: '' };
-        worksheet[cellAddress].s = errorStyle;
-      }
-    });
-
-    // Style the error column header
-    try {
-      const lastCell = worksheet['!ref'].split(':')[1];
-      const errorCol = String.fromCharCode(65 + lastCell.charCodeAt(0) - 65);
-      const headerCell = `${errorCol}1`;
-      if (!worksheet[headerCell]) worksheet[headerCell] = { t: 's', v: 'Validation Errors' };
-      worksheet[headerCell].s = {
-        fill: { fgColor: { rgb: "FFFFCC00" } }, // Yellow background
-        font: { bold: true }
-      };
-    } catch (error) {
-      console.error('Error styling header:', error);
-    }
-  }
-
-  // Download file with error highlights
-  downloadFileWithErrors(fileName: string) {
-    if (this.downloadLinks[fileName]) {
-      const link = document.createElement('a');
-      link.href = this.downloadLinks[fileName];
-      link.download = fileName.replace('.csv', '_with_errors.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
   }
 
 
@@ -875,7 +754,8 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
           uploading: true,
           uploaded: false,
           isProcessing: false,
-          validationResult: ''
+          validationResult: '',
+          is_html: false
         });
 
         // simulate quick upload completion (client-side add)
@@ -953,25 +833,98 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     this.generateDynamicSuggestions(this.userInput);
   }
 
-  private async animateBotResponse(text: string) {
+  private async animateBotResponse(text: string): Promise<void> {
     return new Promise<void>((resolve) => {
-      let i = 0;
-      const botMessage = { sender: 'bot', text: '', timestamp: new Date() };
+      // reset cancel flag for this animation
+      this.cancelAnimationRequested = false;
+
+      // prepare words array (keep words separated by single space)
+      const words = text ? text.split(/\s+/).filter(w => w.length > 0) : [];
+      const botMessage = { sender: 'bot', text: '', timestamp: new Date(), isAnimating: true };
+
+      // append bot message that we fill progressively
       this.messages.push(botMessage);
       this.updateSession();
 
-      const interval = setInterval(() => {
-        botMessage.text += text.charAt(i);
-        i++;
-        this.updateSession();
+      const idx = this.messages.length - 1;
+      this.currentBotMessageIndex = idx;
 
-        if (i >= text.length) {
-          clearInterval(interval);
+      let w = 0;
+      const wordDelay = 80; // ms per word — tweak to taste (smaller => faster)
+
+      // clear any prior interval just in case
+      if (this.currentBotInterval) {
+        clearInterval(this.currentBotInterval);
+        this.currentBotInterval = null;
+      }
+
+      this.currentBotInterval = setInterval(() => {
+        // If user asked to cancel, stop and resolve — leave currently shown words as-is
+        if (this.cancelAnimationRequested) {
+          clearInterval(this.currentBotInterval!);
+          this.currentBotInterval = null;
+          if (this.messages[idx]) {
+            // mark animation ended for this message, but DO NOT append remaining words
+            this.messages[idx].isAnimating = false;
+          }
+          this.updateSession();
+          this.currentBotMessageIndex = null;
+          resolve();
+          return;
+        }
+
+        // Normal progress: add next word
+        if (w < words.length) {
+          if (this.messages[idx]) {
+            // build text with spaces
+            this.messages[idx].text = (this.messages[idx].text ? this.messages[idx].text + ' ' : '') + words[w];
+          }
+          w++;
+          this.updateSession();
+        } else {
+          // finished naturally
+          clearInterval(this.currentBotInterval!);
+          this.currentBotInterval = null;
+          if (this.messages[idx]) {
+            this.messages[idx].isAnimating = false;
+          }
+          this.updateSession();
+          this.currentBotMessageIndex = null;
           resolve();
         }
-      }, 10); // ⏱️ adjust speed (ms per character)
+      }, wordDelay);
     });
   }
+
+  cancelBotTyping() {
+    this.cancelAnimationRequested = true;
+
+    // clear running interval
+    if (this.currentBotInterval) {
+      clearInterval(this.currentBotInterval);
+      this.currentBotInterval = null;
+    }
+
+    // stop any speaking (if TTS running)
+    try { this.tts.stop(); } catch (e) { /* ignore */ }
+
+    // allow user to type immediately
+    this.isWaitingForBot = false;
+
+    // reset index/state
+    if (this.currentBotMessageIndex !== null) {
+      const msg = this.messages[this.currentBotMessageIndex];
+      if (msg) {
+        msg.isAnimating = false;   // 👈 stop typing for this message
+        msg.isCanceled = true;     // 👈 mark canceled so button hides
+      }
+    }
+
+    this.currentBotMessageIndex = null;
+    this.updateSession();
+  }
+
+
   setFeedback(message: any, type: 'like' | 'dislike') {
     if (message.feedback === type) {
       message.feedback = null; // toggle off
