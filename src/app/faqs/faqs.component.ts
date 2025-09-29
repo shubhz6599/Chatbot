@@ -14,7 +14,7 @@ export class FaqsComponent {
     },
     {
       question: 'How can I reset my password?',
-      answer: 'Click on "Forgot Password" at the login screen and follow the instructions sent to your email.',
+      answer: `Dear User, to reset your MSETU password please follow these steps: Click on Forget Password. Enter your User ID in the format  VendorCodeRole@mahindraext.com. Enter the OTP sent to your registered contact. Set your new password. For a detailed SOP on login, please click <a href="https://r2.trialdemo.uk/pdfs/reset.pdf" target=\"_blank\"> Here</a>.`,
       type: 'text'
     },
     {

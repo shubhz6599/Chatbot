@@ -473,7 +473,7 @@ input:disabled { opacity: 0.7; cursor: not-allowed; background-color: var(--bg-s
   text-decoration: none;
   color: #0b57d0;
 }
-::ng-deep .message-content #callAgent,::ng-deep #purchaseOrder, ::ng-deep #payment, ::ng-deep #po-button {
+::ng-deep .message-content #callAgent,::ng-deep #purchaseOrder, ::ng-deep #payment, ::ng-deep #po-button,::ng-deep button {
   background: #e31837; /* brand color */
   color: #fff;
   border: none;
@@ -674,4 +674,36 @@ input:disabled { opacity: 0.7; cursor: not-allowed; background-color: var(--bg-s
 .cancel-typing i {
   font-size: 20px;
   vertical-align: middle;
+}
+
+.chat-input input.readonly {
+  background-color: #f7fafc;
+  cursor: default;
+  opacity: 0.95;
+}
+.dynamicsuggestions {
+  display: flex;
+  flex-wrap: wrap; /* allows wrapping if too many questions */
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  /* margin: 0 8px 6px 8px; */
+  padding: 16px;
+  max-height: 150px;
+  overflow-y: auto;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  gap: 8px; /* space between questions */
+}
+
+.dynamicsuggestion {
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border: 1px solid #e31837; /* border for each question */
+  border-radius: 20px;
+  white-space: nowrap; /* prevent breaking inside */
+}
+
+.dynamicsuggestion:hover {
+  background: #f5f5f5;
 }

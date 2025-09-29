@@ -7,11 +7,11 @@
     </div>
   </div>
 
-  <!-- <div class="suggestions" *ngIf="dynamicSuggestions.length === 0">
-    <div class="suggestion" *ngFor="let question of initialQuestions" (click)="selectSuggestion(question)">
+  <div class="dynamicsuggestions" *ngIf="dynamicSuggestions.length === 0">
+    <div class="dynamicsuggestion" *ngFor="let question of initialQuestions" (click)="selectSuggestion(question)">
       {{ question }}
     </div>
-  </div>  -->
+  </div>
 
   <!-- <div class="suggestions" *ngIf="dynamicSuggestions.length > 0">
     <div class="suggestion" *ngFor="let question of dynamicSuggestions" (click)="selectSuggestion(question)">
@@ -241,8 +241,8 @@
       <i class="material-icons">stop</i>
     </button>
 
-    <input [(ngModel)]="userInput" placeholder="Type your message..." (keyup)="onTyping()" (keyup.enter)="sendMessage()"
-      [disabled]="isWaitingForBot">
+    <input #chatInput [(ngModel)]="userInput" placeholder="Type your message..." (keyup)="onTyping()" (keyup.enter)="sendMessage()"
+      [readonly]="isWaitingForBot" [class.readonly]="isWaitingForBot">
 
     <button class="send-button" (click)="sendMessage()" [disabled]="isWaitingForBot || !userInput.trim()">
       <i class="material-icons">send</i>

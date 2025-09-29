@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, OnChanges, NgZone } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, OnChanges, NgZone, ChangeDetectorRef, ElementRef, ViewChild } from '@angular/core';
 import { SpeechService } from '../services/speech.service';
 import { Subscription } from 'rxjs';
 import { ValidationService } from '../services/validation.service';
@@ -31,13 +31,15 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   currentBotInterval: any = null;
   currentBotMessageIndex: number | null = null;
   cancelAnimationRequested: boolean = false;
-
+  @ViewChild('chatInput') chatInput!: ElementRef<HTMLInputElement>;
+  isFromMic: boolean = false;
   // quick suggestions
   initialQuestions = [
-    'How can I change my email/Phone',
-    'How can I reset my password?',
-    'How can I validate asn file',
-    // 'What is your pricing?'
+    'I want to update my email/Phone',
+    'I want to login MSETU portal',
+    'I want reports',
+    'I want ASN steps',
+    'I want to check M&M GSTN'
   ];
   likedMessages: { [index: number]: 'like' | 'dislike' | null } = {};
 
@@ -76,7 +78,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   private speechSubscription: Subscription | null = null;
 
   constructor(private speechService: SpeechService, private validationService: ValidationService, private chatService: ChatService, private tts: TextToSpeechService,
-    private sanitizer: DomSanitizer, private sessionReset: SessionResetService, private ngZone: NgZone
+    private sanitizer: DomSanitizer, private ngZone: NgZone, private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit() {
@@ -350,30 +352,11 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
         this.scrollToMessage(this.messages.length - 1);
         msg.typing = false;
 
+        this.updateSession()
       }
     });
   }
 
-
-  private animateUserMessage(text: string): Promise<void> {
-    return new Promise((resolve) => {
-      let i = 0;
-      const userMessage = { sender: 'user', text: '', type: 'text', timestamp: new Date() };
-      this.messages.push(userMessage);
-      this.updateSession();
-
-      const interval = setInterval(() => {
-        userMessage.text += text.charAt(i);
-        i++;
-        this.updateSession();
-
-        if (i >= text.length) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 30); // typewriter effect speed
-    });
-  }
 
   submitPaymentDate(messageIndex: number) {
     const msg = this.messages[messageIndex];
@@ -405,6 +388,8 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
         });
         this.scrollToMessage(this.messages.length - 1);
         msg.typing = false;
+        this.updateSession()
+
       }
     });
   }
@@ -424,7 +409,8 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       // process each uploaded file
       let pending = this.uploadedFiles.length;
       for (const file of this.uploadedFiles) {
-        const idx = this.messages.findIndex(m => m.type === 'file' && m.fileName === file.name);
+        const idx = this.findLatestFileMessageIndex(file.name, file.size);
+
 
         // mark UI processing state
         if (idx !== -1) {
@@ -463,17 +449,6 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
               timestamp: new Date()
             });
 
-            // if backend returned s3_url, show a clickable download link as an HTML bot message
-            // if (res?.s3_url) {
-            //   const linkHtml = `<a href="${res.s3_url}" target="_blank" rel="noopener noreferrer">📥 Download validated ${fileType} file</a>`;
-            //   this.messages.push({
-            //     sender: 'bot',
-            //     text: linkHtml,
-            //     is_html: true,
-            //     timestamp: new Date()
-            //   });
-            // }
-
             this.updateSession();
             this.scrollToMessage(this.messages.length - 1);
 
@@ -502,6 +477,8 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
             if (pending === 0) resolve();
           }
         });
+        this.removeFile(file);
+        this.updateSession();
       }
     });
   }
@@ -511,55 +488,92 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
   // main send
   sendMessage(isFromMic: boolean = false) {
-    if (!this.userInput.trim() && this.uploadedFiles.length === 0) return; // nothing to send
+    // nothing to send
+    if (!this.userInput.trim() && this.uploadedFiles.length === 0) return;
     if (this.isWaitingForBot) return;
 
-    const userMessageLower = this.userInput.toLowerCase();
+    const wasFromMic = isFromMic;
+    this.isFromMic = wasFromMic;
 
-    // show user message
+    // push user message (if present)
     if (this.userInput.trim()) {
       this.messages.push({ sender: 'user', text: this.userInput, timestamp: new Date().toISOString() });
     }
     this.updateSession();
 
-    // detect ASN validation intent
+    // mark UI waiting state (use readonly in template to prevent edits while keeping focus)
+    this.isWaitingForBot = true;
+    setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+
+    const userMessageLower = (this.userInput || '').toLowerCase();
+
+    // ---------- ASN validation intent ----------
     if ((userMessageLower.includes('validate') && userMessageLower.includes('asn')) ||
       (userMessageLower.includes('valid') && userMessageLower.includes('asn'))) {
       let fileType = 'ASN';
       if (userMessageLower.includes('vendor')) fileType = 'Vendor';
 
       this.userInput = '';
-      this.isWaitingForBot = true;
+
       this.validateFiles(fileType).finally(() => {
         this.isWaitingForBot = false;
+        const file: any = this.uploadedFiles
         this.updateSession();
+        setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
       });
       return;
     }
-    else if ((userMessageLower.includes('create') && userMessageLower.includes('asn'))
-      || (userMessageLower.includes('creation') && userMessageLower.includes('asn'))
-    || (userMessageLower.includes('generate') && userMessageLower.includes('asn'))
-    || (userMessageLower.includes('generation') && userMessageLower.includes('asn'))
-  ) {
 
+    // ---------- ASN creation intent ----------
+    if ((userMessageLower.includes('create') && userMessageLower.includes('asn')) ||
+      (userMessageLower.includes('creation') && userMessageLower.includes('asn')) ||
+      (userMessageLower.includes('generate') && userMessageLower.includes('asn')) ||
+      (userMessageLower.includes('generation') && userMessageLower.includes('asn'))) {
       if (this.uploadedFiles.length > 0) {
         const file = this.uploadedFiles[0];
-        this.validationService.createASNFile(file).subscribe((res) => {
-          this.messages.push({
-            sender: 'bot',
-            text: res.answer || '✅ ASN created successfully.',
-            is_html: res.is_html || false,
-            timestamp: new Date()
-          });
+        const idx = this.findLatestFileMessageIndex(file.name, file.size);
+        if (idx !== -1) {
+          this.messages[idx].isProcessing = true;
+          this.messages[idx].uploading = false;
+          this.updateSession();
+        }
 
-          // if (res?.s3_url) {
-          //   this.messages.push({
-          //     sender: 'bot',
-          //     text: `<a href="${res.s3_url}" target="_blank" rel="noopener noreferrer">📥 Download created ASN</a>`,
-          //     is_html: true,
-          //     timestamp: new Date()
-          //   });
-          // }
+        this.validationService.createASNFile(file).subscribe({
+          next: (res: any) => {
+            if (idx !== -1) {
+              this.messages[idx].isProcessing = false;
+              this.messages[idx].isValid = res?.answer.includes('~') ? true:false;
+              this.messages[idx].validationResult = res?.answer || '';
+            }
+
+            this.messages.push({
+              sender: 'bot',
+              text: res.answer == '~</br>' ? 'ASN Created Successfully.' : res.answer,
+              is_html: res.is_html || false,
+              timestamp: new Date()
+            });
+
+            this.isWaitingForBot = false;
+            this.removeFile(file)
+            this.updateSession();
+            setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+          },
+          error: () => {
+            if (idx !== -1) {
+              this.messages[idx].isProcessing = false;
+              this.messages[idx].isValid = false;
+              this.messages[idx].validationResult = 'Error creating ASN';
+            }
+            this.messages.push({
+              sender: 'bot',
+              text: '⚠️ Error creating ASN. Please try again.',
+              timestamp: new Date()
+            });
+            this.isWaitingForBot = false;
+
+            this.updateSession();
+            setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+          }
         });
       } else {
         this.messages.push({
@@ -567,88 +581,99 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
           text: '⚠️ Please upload an ASN file before creation.',
           timestamp: new Date()
         });
+        this.isWaitingForBot = false;
+        this.updateSession();
+        setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
       }
       this.userInput = '';
-    }
-    else {
-      // --- Otherwise, QnA API call ---
-      const sentText = this.userInput;
-      const files = [...this.uploadedFiles]; // copy array
-
-      this.userInput = '';
-      this.dynamicSuggestions = [];
-      this.isWaitingForBot = true;
-
-      // Typing indicator
-      this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
       this.updateSession();
+      return;
+    }
 
-      this.chatService.askQuestion(sentText, files).subscribe({
-        next: async (res) => {
-          // remove typing indicator
-          this.messages = this.messages.filter(m => !m.typing);
-          const botText = res?.answer || "Sorry, I couldn't find an answer.";
+    // ---------- Default QnA flow ----------
+    const sentText = this.userInput;
+    const files = [...this.uploadedFiles];
 
-          // check for PURCHASE_ORDER_GENERATE_PROMPT
-          if (res?.answer === 'PURCHASE_ORDER_GENERATE_PROMPT') {
+    this.userInput = '';
+    this.dynamicSuggestions = [];
+
+    // show typing indicator right away so it appears visually
+    this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
+    this.updateSession();
+    this.cdr.detectChanges();
+    this.scrollToMessage(this.messages.length - 1);
+
+    // call backend
+    this.chatService.askQuestion(sentText, files).subscribe({
+      next: async (res: any) => {
+        // remove typing indicator
+        this.messages = this.messages.filter(m => !m.typing);
+        this.updateSession();
+
+        // convenience values
+        const answer = res?.answer || "Sorry, I couldn't find an answer.";
+        const isHtmlResponse = res?.is_html || /<\/?[a-z][\s\S]*>/i.test(answer);
+        // special prompt flows
+        if (res?.answer === 'PURCHASE_ORDER_GENERATE_PROMPT') {
+          this.messages.push({ sender: 'bot', type: 'vendorPrompt', timestamp: new Date() });
+        } else if (res?.answer === 'PAYMENT_REPORT_GENERATE_PROMPT') {
+          this.messages.push({ sender: 'bot', type: 'paymentPrompt', timestamp: new Date(), fromDate: '', toDate: '' });
+        } else {
+          if (isHtmlResponse) {
             this.messages.push({
               sender: 'bot',
-              type: 'vendorPrompt',  // custom type
+              text: answer || 'Talk to a live agent',
+              type: 'call',
+              is_html: res.is_html,
               timestamp: new Date()
             });
-          } else if (res?.answer === 'PAYMENT_REPORT_GENERATE_PROMPT') {
-            this.messages.push({
-              sender: 'bot',
-              type: 'paymentPrompt',
-              timestamp: new Date(),
-              fromDate: '',
-              toDate: ''
-            });
           } else {
-            const isHtmlResponse = res?.is_html || /<\/?[a-z][\s\S]*>/i.test(res?.answer);
-            if (isHtmlResponse) {
-              this.messages.push({
-                sender: 'bot',
-                text: res.answer || 'Talk to a live agent',
-                type: 'call',
-                is_html: res.is_html,
-                timestamp: new Date()
-              });
-            } else {
-              await this.animateBotResponse(res?.answer || "Sorry, I couldn't find an answer.");
-              if (isFromMic && !this.cancelAnimationRequested) {
-                this.speak(res?.answer || "Sorry, I couldn't find an answer.");
-              }
+            // If the input was from mic, speak **immediately** when the answer comes back
 
-              // reset cancel flag for next response
-              this.cancelAnimationRequested = false;
-            }
+
+            // still show typing/typewriter animation for UI
+            // reset cancel flag for next response
+            await this.animateBotResponse(answer || "Sorry, I couldn't find an answer.");
+            this.cancelAnimationRequested = false;
           }
-
-          this.isWaitingForBot = false;
-          this.updateSession();
-          this.scrollToMessage(this.messages.length - 1);
-          setTimeout(() => {
-            const c = document.querySelector('.chat-messages') as HTMLElement | null;
-            if (c) c.scrollTop = c.scrollHeight;
-          }, 0);
-        },
-        error: (err) => {
-          this.messages = this.messages.filter(m => !m.typing);
-          this.messages.push({
-            sender: 'bot',
-            text: 'Error fetching answer. Please try again.',
-            timestamp: new Date()
-          });
-          if (isFromMic) this.speak('Error fetching answer. Please try again.');
-          this.isWaitingForBot = false;
-          this.updateSession();
-          this.scrollToMessage(this.messages.length - 1);
+          const plainText = (answer || '').replace(/<[^>]*>/g, '').trim();
+          if (wasFromMic && plainText) {
+            this.speak(plainText);
+          }
         }
-      });
 
-    }
+        this.isWaitingForBot = false;
+        this.updateSession();
+
+        // keep focus in input so user can type immediately
+        setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+
+        this.scrollToMessage(this.messages.length - 1);
+        setTimeout(() => {
+          const c = document.querySelector('.chat-messages') as HTMLElement | null;
+          if (c) c.scrollTop = c.scrollHeight;
+        }, 0);
+      },
+      error: (err) => {
+        this.messages = this.messages.filter(m => !m.typing);
+        this.messages.push({
+          sender: 'bot',
+          text: 'Error fetching answer. Please try again.',
+          timestamp: new Date()
+        });
+        if (wasFromMic) this.speak('Error fetching answer. Please try again.');
+        this.isWaitingForBot = false;
+        this.updateSession();
+        this.scrollToMessage(this.messages.length - 1);
+        setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+      }
+
+    });
+    const file: any = this.uploadedFiles
+    this.removeFile(file);
+    this.updateSession()
   }
+
 
   triggerCall() {
     this.startCall.emit();   // 👈 notify parent
@@ -731,6 +756,22 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     }, 50); // delay so DOM updates first
   }
 
+  private findLatestFileMessageIndex(fileName: string, fileSize?: number): number {
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      const m = this.messages[i];
+      if (m && m.type === 'file' && m.fileName === fileName) {
+        // prefer exact size match when provided (we store rawSize on the message)
+        if (typeof fileSize !== 'undefined') {
+          if (m.rawSize === fileSize) return i;
+          // if rawSize missing (older tile), continue searching for a better match
+        } else {
+          return i;
+        }
+      }
+    }
+    return -1;
+  }
+
 
   // upload handling
   uploadFile(event: any) {
@@ -739,18 +780,24 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (!this.uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+
+      // consider lastModified too to avoid false duplicates
+      const alreadyAdded = this.uploadedFiles.some(f =>
+        f.name === file.name && f.size === file.size && (f as any).lastModified === (file as any).lastModified
+      );
+
+      if (!alreadyAdded) {
         this.uploadedFiles.push(file);
 
-        // push a tile in "Uploading..." state (no more false 'Invalid' flash)
+        // push a tile in "Uploading..." state and store rawSize to help exact matching later
         this.messages.push({
           sender: 'user',
           type: 'file',
           fileName: file.name,
-          fileSize: this.formatFileSize(file.size),
+          fileSize: this.formatFileSize(file.size), // display string
+          rawSize: file.size,                       // numeric size for matching
           timestamp: new Date(),
           isValid: null,
-          // new upload state flags
           uploading: true,
           uploaded: false,
           isProcessing: false,
@@ -758,9 +805,9 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
           is_html: false
         });
 
-        // simulate quick upload completion (client-side add)
+        // simulate quick upload completion (client-side)
         setTimeout(() => {
-          const idx = this.messages.findIndex(m => m.type === 'file' && m.fileName === file.name);
+          const idx = this.findLatestFileMessageIndex(file.name, file.size);
           if (idx !== -1) {
             this.messages[idx].uploading = false;
             this.messages[idx].uploaded = true; // show 'Uploaded'
@@ -845,6 +892,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       // append bot message that we fill progressively
       this.messages.push(botMessage);
       this.updateSession();
+      this.cdr.detectChanges();   // <- ensure angular renders the newly added bot message immediately
 
       const idx = this.messages.length - 1;
       this.currentBotMessageIndex = idx;
