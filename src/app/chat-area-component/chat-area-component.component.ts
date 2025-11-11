@@ -37,7 +37,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   initialQuestions = [
     'I want to update my email/Phone',
     'I want to login MSETU portal',
-    'I want reports',
+    'I want Payment report',
     'I want ASN steps',
     'I want to check M&M GSTN'
   ];
@@ -273,9 +273,13 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   formatMessage(text: string, isHtml: boolean = false): SafeHtml {
     if (!text) return '';
 
-    if (isHtml) {
-      return this.sanitizer.bypassSecurityTrustHtml(text);
-    }
+   if (isHtml) {
+    // Normalize <br> tags
+    text = text.replace(/<\/?br\s*\/?>/gi, '<br>');
+
+    // Allow safe HTML rendering (buttons + links)
+    return this.sanitizer.bypassSecurityTrustHtml(text);
+  }
 
     // fallback → detect URLs and convert to links
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -285,40 +289,57 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
-  handleHtmlClick(event: Event) {
-    const target = event.target as HTMLElement;
+handleHtmlClick(event: Event) {
+  const target = event.target as HTMLElement;
 
-    if (target.tagName.toLowerCase() === 'button') {
-      // Find parent .message-content div
-      const parentDiv = target.closest('.message-content') as HTMLElement;
-      if (parentDiv) {
-        // Disable all buttons inside this message
-        const buttons = parentDiv.querySelectorAll('button');
-        buttons.forEach(btn => {
-          // Using property directly
-          (btn as HTMLButtonElement).disabled = true;
-          // Add class for styling
-          btn.classList.add('disabled-btn');
-          // Optional: disable pointer events
-          btn.style.pointerEvents = 'none';
-          btn.style.opacity = '0.6'; // visual feedback
-        });
-      }
+  // 🟢 Case 1: Handle BUTTON clicks (keep your existing logic)
+  if (target.tagName.toLowerCase() === 'button') {
+    const parentDiv = target.closest('.message-content') as HTMLElement;
+    if (parentDiv) {
+      const buttons = parentDiv.querySelectorAll('button');
+      buttons.forEach(btn => {
+        (btn as HTMLButtonElement).disabled = true;
+        btn.classList.add('disabled-btn');
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.6';
+      });
+    }
 
-      // Execute action
-      switch (target.id) {
-        case 'callAgent':
-          this.triggerCall();
-          break;
-        case 'purchaseOrder':
-          this.sendData('Purchase Order');
-          break;
-        case 'payment':
-          this.sendData('Payment');
-          break;
-      }
+    switch (target.id) {
+      case 'callAgent':
+        this.triggerCall();
+        break;
+      case 'purchaseOrder':
+        this.sendData('Purchase Order');
+        break;
+      case 'payment':
+        this.sendData('Payment');
+        break;
+      case 'createAsn':
+        const lastBotMsg = [...this.messages].reverse()
+          .find(m => m.sender === 'bot' && m.text?.includes('href='));
+        if (lastBotMsg) {
+          const match = lastBotMsg.text.match(/href="([^"]+)"/);
+          if (match && match[1]) {
+            const fileUrl = match[1];
+            this.sendData(`ASN_CREATE-${fileUrl}`);
+          }
+        }
+        break;
+    }
+    return; // ✅ stop here after button handling
+  }
+
+  // 🟢 Case 2: Handle <a> (anchor) link clicks
+  if (target.tagName.toLowerCase() === 'a' && target.getAttribute('href')) {
+    event.preventDefault();
+    const url = target.getAttribute('href');
+    if (url) {
+      window.open(url, '_blank'); // ✅ open in new tab for download
     }
   }
+}
+
 
 
 
@@ -487,7 +508,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
 
   // main send
-  sendMessage(isFromMic: boolean = false) {
+  sendMessage(isFromMic: boolean = false, apiPrompt?: any) {
     // nothing to send
     if (!this.userInput.trim() && this.uploadedFiles.length === 0) return;
     if (this.isWaitingForBot) return;
@@ -496,7 +517,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     this.isFromMic = wasFromMic;
 
     // push user message (if present)
-    if (this.userInput.trim()) {
+    if (this.userInput.trim() && !apiPrompt) {
       this.messages.push({ sender: 'user', text: this.userInput, timestamp: new Date().toISOString() });
     }
     this.updateSession();
@@ -507,88 +528,89 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
     const userMessageLower = (this.userInput || '').toLowerCase();
 
-    // ---------- ASN validation intent ----------
-    if ((userMessageLower.includes('validate') && userMessageLower.includes('asn')) ||
-      (userMessageLower.includes('valid') && userMessageLower.includes('asn'))) {
-      let fileType = 'ASN';
-      if (userMessageLower.includes('vendor')) fileType = 'Vendor';
+    // // ---------- ASN validation intent ----------
+    // if ((userMessageLower.includes('validate') && userMessageLower.includes('asn')) ||
+    //   (userMessageLower.includes('valid') && userMessageLower.includes('asn'))) {
+    //   let fileType = 'ASN';
+    //   if (userMessageLower.includes('vendor')) fileType = 'Vendor';
 
-      this.userInput = '';
+    //   this.userInput = '';
 
-      this.validateFiles(fileType).finally(() => {
-        this.isWaitingForBot = false;
-        const file: any = this.uploadedFiles
-        this.updateSession();
-        setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
-      });
-      return;
-    }
+    //   this.validateFiles(fileType).finally(() => {
+    //     this.isWaitingForBot = false;
+    //     const file: any = this.uploadedFiles;
+    //         this.removeFile(file)
+    //     this.updateSession();
+    //     setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+    //   });
+    //   return;
+    // }
 
-    // ---------- ASN creation intent ----------
-    if ((userMessageLower.includes('create') && userMessageLower.includes('asn')) ||
-      (userMessageLower.includes('creation') && userMessageLower.includes('asn')) ||
-      (userMessageLower.includes('generate') && userMessageLower.includes('asn')) ||
-      (userMessageLower.includes('generation') && userMessageLower.includes('asn'))) {
-      if (this.uploadedFiles.length > 0) {
-        const file = this.uploadedFiles[0];
-        const idx = this.findLatestFileMessageIndex(file.name, file.size);
-        if (idx !== -1) {
-          this.messages[idx].isProcessing = true;
-          this.messages[idx].uploading = false;
-          this.updateSession();
-        }
+    // // ---------- ASN creation intent ----------
+    // if ((userMessageLower.includes('create') && userMessageLower.includes('asn')) ||
+    //   (userMessageLower.includes('creation') && userMessageLower.includes('asn')) ||
+    //   (userMessageLower.includes('generate') && userMessageLower.includes('asn')) ||
+    //   (userMessageLower.includes('generation') && userMessageLower.includes('asn'))) {
+    //   if (this.uploadedFiles.length > 0) {
+    //     const file = this.uploadedFiles[0];
+    //     const idx = this.findLatestFileMessageIndex(file.name, file.size);
+    //     if (idx !== -1) {
+    //       this.messages[idx].isProcessing = true;
+    //       this.messages[idx].uploading = false;
+    //       this.updateSession();
+    //     }
 
-        this.validationService.createASNFile(file).subscribe({
-          next: (res: any) => {
-            if (idx !== -1) {
-              this.messages[idx].isProcessing = false;
-              this.messages[idx].isValid = res?.answer.includes('~') ? true:false;
-              this.messages[idx].validationResult = res?.answer || '';
-            }
+    //     this.validationService.createASNFile(file).subscribe({
+    //       next: (res: any) => {
+    //         if (idx !== -1) {
+    //           this.messages[idx].isProcessing = false;
+    //           this.messages[idx].isValid = res?.answer.includes('~') ? true:false;
+    //           this.messages[idx].validationResult = res?.answer || '';
+    //         }
 
-            this.messages.push({
-              sender: 'bot',
-              text: res.answer == '~</br>' ? 'ASN Created Successfully.' : res.answer,
-              is_html: res.is_html || false,
-              timestamp: new Date()
-            });
+    //         this.messages.push({
+    //           sender: 'bot',
+    //           text: res.answer == '~</br>' ? 'ASN Created Successfully.' : res.answer,
+    //           is_html: res.is_html || false,
+    //           timestamp: new Date()
+    //         });
 
-            this.isWaitingForBot = false;
-            this.removeFile(file)
-            this.updateSession();
-            setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
-          },
-          error: () => {
-            if (idx !== -1) {
-              this.messages[idx].isProcessing = false;
-              this.messages[idx].isValid = false;
-              this.messages[idx].validationResult = 'Error creating ASN';
-            }
-            this.messages.push({
-              sender: 'bot',
-              text: '⚠️ Error creating ASN. Please try again.',
-              timestamp: new Date()
-            });
-            this.isWaitingForBot = false;
-
-            this.updateSession();
-            setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
-          }
-        });
-      } else {
-        this.messages.push({
-          sender: 'bot',
-          text: '⚠️ Please upload an ASN file before creation.',
-          timestamp: new Date()
-        });
-        this.isWaitingForBot = false;
-        this.updateSession();
-        setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
-      }
-      this.userInput = '';
-      this.updateSession();
-      return;
-    }
+    //         this.isWaitingForBot = false;
+    //         this.removeFile(file)
+    //         this.updateSession();
+    //         setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+    //       },
+    //       error: () => {
+    //         if (idx !== -1) {
+    //           this.messages[idx].isProcessing = false;
+    //           this.messages[idx].isValid = false;
+    //           this.messages[idx].validationResult = 'Error creating ASN';
+    //         }
+    //         this.messages.push({
+    //           sender: 'bot',
+    //           text: '⚠️ Error creating ASN. Please try again.',
+    //           timestamp: new Date()
+    //         });
+    //         this.isWaitingForBot = false;
+    //         this.removeFile(file)
+    //         this.updateSession();
+    //         setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+    //       }
+    //     });
+    //   } else {
+    //     this.messages.push({
+    //       sender: 'bot',
+    //       text: '⚠️ Please upload an ASN file before creation.',
+    //       timestamp: new Date()
+    //     });
+    //     this.isWaitingForBot = false;
+    //     this.updateSession();
+    //     setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+    //   }
+    //   this.userInput = '';
+    //   this.updateSession();
+    //   return;
+    // }
 
     // ---------- Default QnA flow ----------
     const sentText = this.userInput;
@@ -596,6 +618,24 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
     this.userInput = '';
     this.dynamicSuggestions = [];
+    const hasImage = files.some(file =>
+      file.type.startsWith('image/') || /\.(png|jpg|jpeg)$/i.test(file.name)
+    );
+
+    if (hasImage) {
+      this.messages.push({
+        sender: 'bot',
+        text: `You have entered the wrong vendor id/ password , please enter the vendor id in below format-
+              VendorCode-Role@mahindraext.com. Need live help? <button id='callAgent' class='btn-call'>Call Agent</button>`,
+        timestamp: new Date()
+      });
+      this.isWaitingForBot = false;
+      this.updateSession();
+      this.clearFiles();
+      setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
+      return; // ⛔ stop here
+    }
+
 
     // show typing indicator right away so it appears visually
     this.messages.push({ sender: 'bot', typing: true, timestamp: new Date() });
@@ -608,11 +648,12 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
       next: async (res: any) => {
         // remove typing indicator
         this.messages = this.messages.filter(m => !m.typing);
+        this.clearFiles();
         this.updateSession();
 
         // convenience values
         const answer = res?.answer || "Sorry, I couldn't find an answer.";
-        const isHtmlResponse = res?.is_html || /<\/?[a-z][\s\S]*>/i.test(answer);
+        const isHtmlResponse = res?.is_html || res?.ts_html || /<\/?[a-z][\s\S]*>/i.test(answer);
         // special prompt flows
         if (res?.answer === 'PURCHASE_ORDER_GENERATE_PROMPT') {
           this.messages.push({ sender: 'bot', type: 'vendorPrompt', timestamp: new Date() });
@@ -624,7 +665,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
               sender: 'bot',
               text: answer || 'Talk to a live agent',
               type: 'call',
-              is_html: res.is_html,
+              is_html: res.is_html || res?.ts_html,
               timestamp: new Date()
             });
           } else {
@@ -643,6 +684,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
         }
 
         this.isWaitingForBot = false;
+        this.clearFiles();
         this.updateSession();
 
         // keep focus in input so user can type immediately
@@ -663,14 +705,14 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
         });
         if (wasFromMic) this.speak('Error fetching answer. Please try again.');
         this.isWaitingForBot = false;
+        this.clearFiles();
         this.updateSession();
         this.scrollToMessage(this.messages.length - 1);
         setTimeout(() => { try { this.chatInput?.nativeElement.focus(); } catch (e) { } });
       }
 
     });
-    const file: any = this.uploadedFiles
-    this.removeFile(file);
+    this.clearFiles();
     this.updateSession()
   }
 
@@ -721,8 +763,12 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
   sendData(reportName: string) {
     // mimic typing a message
-    this.userInput = reportName + ' Report Generate Request';
-    this.sendMessage(); // call your existing sendMessage()
+    if (reportName.includes('ASN_CREATE')) {
+      this.userInput = reportName;
+    } else {
+      this.userInput = reportName + ' Report Generate Request';
+    }
+    this.sendMessage(false, true); // call your existing sendMessage()
   }
 
   sendReportInput() {
@@ -839,7 +885,56 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
+  // // Uncomment to handle all From API
+  // speak(text: string, isHtml: boolean = false) {
+  //   const plainText = this.stripHtml(text)
 
+  //   this.showVolume = false;
+
+  //   this.tts.speak(
+  //     plainText,
+  //     () => console.log('▶️ Started reading'),
+  //     () => {
+  //       console.log('✅ Finished reading');
+  //       this.ngZone.run(() => {
+  //         this.showVolume = true;
+  //       });
+  //     },
+  //     () => {
+  //       console.log('❌ Error while reading');
+  //       this.ngZone.run(() => {
+  //         this.showVolume = true;
+  //       });
+  //     },
+  //     (spoken, pending) => {
+  //       console.log('📖 Spoken:', spoken);
+  //       console.log('⏳ Remaining:', pending);
+  //     }
+  //   );
+  // }
+
+  // // helper function inside the class
+  // private stripHtml(html: string): string {
+  //   if (!html) return '';
+
+  //   // 1️⃣ Remove all tags (including malformed ones)
+  //   let text = html.replace(/<\/?[^>]+(>|$)/g, ' ');
+
+  //   // 2️⃣ Decode common HTML entities
+  //   const doc = new DOMParser().parseFromString(text, "text/html");
+  //   text = doc.documentElement.textContent || '';
+
+  //   // 3️⃣ Normalize spaces and line breaks
+  //   text = text.replace(/\s+/g, ' ').trim();
+
+  //   return text;
+  // }
+  //   stop() {
+  //     this.showVolume = true
+  //     this.tts.stop();
+  //   }
+
+  // Uncomment to handle all From UI
   speak(text: string) {
     this.showVolume = false;
 
@@ -870,6 +965,42 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     this.showVolume = true
     this.tts.stop();
   }
+
+
+  // speak(text: string, ) {
+  //   const plainText =  this.stripHtml(text) ;
+
+  //   this.showVolume = false;
+
+  //   this.tts.speak(
+  //     plainText,
+  //     () => {
+  //       console.log('▶️ Started reading');
+  //       this.ngZone.run(() => {
+  //         this.showVolume = false; // show STOP button
+  //       });
+  //     },
+  //     () => {
+  //       console.log('✅ Finished reading');
+  //       this.ngZone.run(() => {
+  //         this.showVolume = true; // show PLAY button again
+  //       });
+  //     },
+  //     () => {
+  //       console.log('❌ Error while reading');
+  //       this.ngZone.run(() => {
+  //         this.showVolume = true; // back to PLAY button on error
+  //       });
+  //     }
+  //   );
+  // }
+
+  // stop() {
+  //   this.tts.stop();
+  //   this.showVolume = true; // reset to PLAY button
+  // }
+
+
 
   onTyping() {
     if (!this.userInput.trim()) {

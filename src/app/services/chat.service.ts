@@ -19,7 +19,7 @@ export class ChatService {
 
     if (files && files.length > 0) {
       files.forEach((file) => {
-        formData.append('image', file, file.name);
+        formData.append('file', file, file.name);
       });
     }
 

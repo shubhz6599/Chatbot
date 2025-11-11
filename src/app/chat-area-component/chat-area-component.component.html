@@ -218,7 +218,7 @@
     <!-- File upload -->
     <label class="file-upload-btn" [class.has-file]="uploadedFiles.length > 0">
       <i class="material-icons">{{ uploadedFiles.length > 0 ? 'attachment' : 'attach_file' }}</i>
-      <input #fileInput type="file" class="file-input" (change)="uploadFile($event)" accept=".csv,.xlsx,.xls" multiple
+      <input #fileInput type="file" class="file-input" (change)="uploadFile($event)" accept=".csv,.xlsx,.xls,.png,.jpg,.jpeg" multiple
         [disabled]="isWaitingForBot">
       <span class="file-count" *ngIf="uploadedFiles.length > 0">{{ uploadedFiles.length }}</span>
     </label>
