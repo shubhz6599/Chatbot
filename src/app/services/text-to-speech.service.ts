@@ -251,6 +251,7 @@ import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { environment } from 'environment';
 
 @Injectable({
   providedIn: 'root',
@@ -259,7 +260,7 @@ export class TextToSpeechService {
   private audio?: HTMLAudioElement;
   private stop$ = new Subject<void>();
 
-  constructor(private http: HttpClient, private ngZone: NgZone) {}
+  constructor(private http: HttpClient, private ngZone: NgZone) { }
 
   /**
    * Speak text by calling backend TTS API
@@ -281,7 +282,8 @@ export class TextToSpeechService {
         this.http.post<ArrayBuffer>(
           // 'http://localhost:3000/api/tts-gemini',
           // 'http://localhost:3000/api/ttss',
-          'https://twillio-chatgpt-wrapper-production.up.railway.app/api/ttss',
+          // 'https://twillio-chatgpt-wrapper-production.up.railway.app/api/ttss',
+              environment.twilioBase + '/api/ttss',
           // 'http://localhost:3000/api/tts-eleven',
           { text },
           { responseType: 'arraybuffer' as 'json' }
