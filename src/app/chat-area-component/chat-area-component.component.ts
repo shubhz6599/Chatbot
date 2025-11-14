@@ -511,6 +511,9 @@ handleHtmlClick(event: Event) {
   sendMessage(isFromMic: boolean = false, apiPrompt?: any) {
     // nothing to send
     if (!this.userInput.trim() && this.uploadedFiles.length === 0) return;
+    if(this.showVolume = true){
+      this.stop()
+    }
     if (this.isWaitingForBot) return;
 
     const wasFromMic = isFromMic;
@@ -935,70 +938,85 @@ handleHtmlClick(event: Event) {
   //   }
 
   // Uncomment to handle all From UI
-  speak(text: string) {
-    this.showVolume = false;
-
-    this.tts.speak(
-      text,
-      () => console.log('▶️ Started reading'),
-      () => {
-        console.log('✅ Finished reading');
-        this.ngZone.run(() => {
-          this.showVolume = true;   // 🔥 Angular will detect this
-        });
-      },
-      () => {
-        console.log('❌ Error while reading');
-        this.ngZone.run(() => {
-          this.showVolume = true;
-        });
-      },
-      (spoken, pending) => {
-        console.log('📖 Spoken:', spoken);
-        console.log('⏳ Remaining:', pending);
-      }
-    );
-  }
-
-
-  stop() {
-    this.showVolume = true
-    this.tts.stop();
-  }
-
-
-  // speak(text: string, ) {
-  //   const plainText =  this.stripHtml(text) ;
-
+  // speak(text: string) {
   //   this.showVolume = false;
 
   //   this.tts.speak(
-  //     plainText,
-  //     () => {
-  //       console.log('▶️ Started reading');
-  //       this.ngZone.run(() => {
-  //         this.showVolume = false; // show STOP button
-  //       });
-  //     },
+  //     text,
+  //     () => console.log('▶️ Started reading'),
   //     () => {
   //       console.log('✅ Finished reading');
   //       this.ngZone.run(() => {
-  //         this.showVolume = true; // show PLAY button again
+  //         this.showVolume = true;   // 🔥 Angular will detect this
   //       });
   //     },
   //     () => {
   //       console.log('❌ Error while reading');
   //       this.ngZone.run(() => {
-  //         this.showVolume = true; // back to PLAY button on error
+  //         this.showVolume = true;
   //       });
+  //     },
+  //     (spoken, pending) => {
+  //       console.log('📖 Spoken:', spoken);
+  //       console.log('⏳ Remaining:', pending);
   //     }
   //   );
   // }
 
+
   // stop() {
+  //   this.showVolume = true
   //   this.tts.stop();
-  //   this.showVolume = true; // reset to PLAY button
   // }
+
+
+  speak(text: string, ) {
+    const plainText =  this.stripHtml(text) ;
+
+    this.showVolume = false;
+
+    this.tts.speak(
+      plainText,
+      () => {
+        console.log('▶️ Started reading');
+        this.ngZone.run(() => {
+          this.showVolume = false; // show STOP button
+        });
+      },
+      () => {
+        console.log('✅ Finished reading');
+        this.ngZone.run(() => {
+          this.showVolume = true; // show PLAY button again
+        });
+      },
+      () => {
+        console.log('❌ Error while reading');
+        this.ngZone.run(() => {
+          this.showVolume = true; // back to PLAY button on error
+        });
+      }
+    );
+  }
+
+   private stripHtml(html: string): string {
+    if (!html) return '';
+
+    // 1️⃣ Remove all tags (including malformed ones)
+    let text = html.replace(/<\/?[^>]+(>|$)/g, ' ');
+
+    // 2️⃣ Decode common HTML entities
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    text = doc.documentElement.textContent || '';
+
+    // 3️⃣ Normalize spaces and line breaks
+    text = text.replace(/\s+/g, ' ').trim();
+
+    return text;
+  }
+  stop() {
+    this.tts.stop();
+    this.showVolume = true; // reset to PLAY button
+  }
 
 
 
