@@ -219,7 +219,7 @@
     <label class="file-upload-btn" [class.has-file]="uploadedFiles.length > 0">
       <i class="material-icons">{{ uploadedFiles.length > 0 ? 'attachment' : 'attach_file' }}</i>
       <input #fileInput type="file" class="file-input" (change)="uploadFile($event)" accept=".csv,.xlsx,.xls,.png,.jpg,.jpeg" multiple
-        [disabled]="isWaitingForBot">
+       [disabled]="isWaitingForBot">
       <span class="file-count" *ngIf="uploadedFiles.length > 0">{{ uploadedFiles.length }}</span>
     </label>
 
@@ -227,6 +227,11 @@
     <button class="mic-button" (click)="onStartListening()" *ngIf="!isListening && !isProcessingSpeech"
       [disabled]="isWaitingForBot">
       <i class="material-icons">mic</i>
+    </button>
+
+    <button class="mic-button" (click)="startRealtimeVoice()" *ngIf="!isListening && !isProcessingSpeech"
+      [disabled]="isWaitingForBot">
+      <i class="material-icons">record_voice_over</i>
     </button>
 
     <!-- Processing speech dots -->
@@ -242,7 +247,7 @@
     </button>
 
     <input #chatInput [(ngModel)]="userInput" placeholder="Type your message..." (keyup)="onTyping()" (keyup.enter)="sendMessage()"
-      [readonly]="isWaitingForBot" [class.readonly]="isWaitingForBot">
+     [readonly]="isWaitingForBot" [class.readonly]="isWaitingForBot">
 
     <button class="send-button" (click)="sendMessage()" [disabled]="isWaitingForBot || !userInput.trim()">
       <i class="material-icons">send</i>
@@ -278,5 +283,73 @@
     <button class="stop-button" (click)="onStopListening()">
       Stop Listening
     </button>
+  </div>
+</div>
+
+
+<div class="rt-overlay" *ngIf="showVoiceAnimForAssistant">
+  <div class="rt-container">
+
+    <!-- Header -->
+    <div class="rt-topbar">
+      <div class="rt-status">
+        <div class="rt-dot" [class.live]="realtimeConnected"></div>
+        <span>{{ realtimeConnected ? 'Assistant Live' : 'Connecting…' }}</span>
+      </div>
+
+      <button class="rt-end-btn" (click)="stopRealtimeVoice()">
+        <i class="material-icons">close</i>
+      </button>
+    </div>
+
+    <!-- Chat Window -->
+    <div class="rt-chat-window">
+      
+ <div class="rt-chat-window">
+
+  <!-- ALL CHAT MESSAGES -->
+  <div *ngFor="let msg of realtimeMessages" 
+       class="rt-msg" 
+       [ngClass]="msg.sender">
+
+    <div class="rt-bubble" 
+         [ngClass]="msg.sender + '-bubble'">
+      {{ msg.text }}
+    </div>
+  </div>
+
+  <!-- INTERIM LIVE SPEECH TEXT -->
+  <div class="rt-msg interim" *ngIf="interimSpeechTextForVtV">
+    <!-- <div class="rt-bubble interim-bubble">
+      {{ interimSpeechTextForVtV }}
+    </div> -->
+  </div>
+
+  <!-- INCREMENTAL ASSISTANT RESPONSE -->
+  <!-- <div class="rt-msg assistant" *ngIf="currentAssistantText">
+    <div class="rt-bubble assistant-bubble">
+      {{ currentAssistantText }}
+    </div>
+  </div> -->
+
+</div>
+
+
+      <!-- <div class="rt-msg interim" *ngIf="interimSpeechText">
+        <div class="rt-bubble interim-bubble">{{ interimSpeechText }}</div>
+      </div> -->
+
+    </div>
+
+    <!-- Mic -->
+    <div class="rt-mic-wrapper">
+      <div class="rt-mic" [class.listening]="realtimeConnected">
+        <i class="material-icons">mic</i>
+      </div>
+      <p class="rt-caption">
+        {{ interimSpeechText ? 'Listening…' : 'Say something' }}
+      </p>
+    </div>
+
   </div>
 </div>

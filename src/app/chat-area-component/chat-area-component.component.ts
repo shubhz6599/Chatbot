@@ -7,6 +7,8 @@ import { ChatService } from '../services/chat.service';
 import { TextToSpeechService } from '../services/text-to-speech.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SessionResetService } from '../services/session-reset.service';
+import { RealtimeVoiceService } from '../services/realtime-voice.service';
+
 @Component({
   selector: 'app-chat-area-component',
   templateUrl: './chat-area-component.component.html',
@@ -78,7 +80,8 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   private speechSubscription: Subscription | null = null;
 
   constructor(private speechService: SpeechService, private validationService: ValidationService, private chatService: ChatService, private tts: TextToSpeechService,
-    private sanitizer: DomSanitizer, private ngZone: NgZone, private cdr: ChangeDetectorRef
+    private sanitizer: DomSanitizer, private ngZone: NgZone, private cdr: ChangeDetectorRef,
+    private realtimeVoice: RealtimeVoiceService
   ) { }
 
   ngOnInit() {
@@ -273,13 +276,13 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   formatMessage(text: string, isHtml: boolean = false): SafeHtml {
     if (!text) return '';
 
-   if (isHtml) {
-    // Normalize <br> tags
-    text = text.replace(/<\/?br\s*\/?>/gi, '<br>');
+    if (isHtml) {
+      // Normalize <br> tags
+      text = text.replace(/<\/?br\s*\/?>/gi, '<br>');
 
-    // Allow safe HTML rendering (buttons + links)
-    return this.sanitizer.bypassSecurityTrustHtml(text);
-  }
+      // Allow safe HTML rendering (buttons + links)
+      return this.sanitizer.bypassSecurityTrustHtml(text);
+    }
 
     // fallback → detect URLs and convert to links
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -289,56 +292,56 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
-handleHtmlClick(event: Event) {
-  const target = event.target as HTMLElement;
+  handleHtmlClick(event: Event) {
+    const target = event.target as HTMLElement;
 
-  // 🟢 Case 1: Handle BUTTON clicks (keep your existing logic)
-  if (target.tagName.toLowerCase() === 'button') {
-    const parentDiv = target.closest('.message-content') as HTMLElement;
-    if (parentDiv) {
-      const buttons = parentDiv.querySelectorAll('button');
-      buttons.forEach(btn => {
-        (btn as HTMLButtonElement).disabled = true;
-        btn.classList.add('disabled-btn');
-        btn.style.pointerEvents = 'none';
-        btn.style.opacity = '0.6';
-      });
-    }
+    // 🟢 Case 1: Handle BUTTON clicks (keep your existing logic)
+    if (target.tagName.toLowerCase() === 'button') {
+      const parentDiv = target.closest('.message-content') as HTMLElement;
+      if (parentDiv) {
+        const buttons = parentDiv.querySelectorAll('button');
+        buttons.forEach(btn => {
+          (btn as HTMLButtonElement).disabled = true;
+          btn.classList.add('disabled-btn');
+          btn.style.pointerEvents = 'none';
+          btn.style.opacity = '0.6';
+        });
+      }
 
-    switch (target.id) {
-      case 'callAgent':
-        this.triggerCall();
-        break;
-      case 'purchaseOrder':
-        this.sendData('Purchase Order');
-        break;
-      case 'payment':
-        this.sendData('Payment');
-        break;
-      case 'createAsn':
-        const lastBotMsg = [...this.messages].reverse()
-          .find(m => m.sender === 'bot' && m.text?.includes('href='));
-        if (lastBotMsg) {
-          const match = lastBotMsg.text.match(/href="([^"]+)"/);
-          if (match && match[1]) {
-            const fileUrl = match[1];
-            this.sendData(`ASN_CREATE-${fileUrl}`);
+      switch (target.id) {
+        case 'callAgent':
+          this.triggerCall();
+          break;
+        case 'purchaseOrder':
+          this.sendData('Purchase Order');
+          break;
+        case 'payment':
+          this.sendData('Payment');
+          break;
+        case 'createAsn':
+          const lastBotMsg = [...this.messages].reverse()
+            .find(m => m.sender === 'bot' && m.text?.includes('href='));
+          if (lastBotMsg) {
+            const match = lastBotMsg.text.match(/href="([^"]+)"/);
+            if (match && match[1]) {
+              const fileUrl = match[1];
+              this.sendData(`ASN_CREATE-${fileUrl}`);
+            }
           }
-        }
-        break;
+          break;
+      }
+      return; // ✅ stop here after button handling
     }
-    return; // ✅ stop here after button handling
-  }
 
-  // 🟢 Case 2: Handle <a> (anchor) link clicks
-  if (target.tagName.toLowerCase() === 'a' && target.getAttribute('href')) {
-    event.preventDefault();
-    const url = target.getAttribute('href');
-    if (url) {
-      window.open(url, '_blank'); // ✅ open in new tab for download
+    // 🟢 Case 2: Handle <a> (anchor) link clicks
+    if (target.tagName.toLowerCase() === 'a' && target.getAttribute('href')) {
+      event.preventDefault();
+      const url = target.getAttribute('href');
+      if (url) {
+        window.open(url, '_blank'); // ✅ open in new tab for download
+      }
     }
   }
-}
 
 
 
@@ -998,7 +1001,7 @@ handleHtmlClick(event: Event) {
     );
   }
 
-   private stripHtml(html: string): string {
+  private stripHtml(html: string): string {
     if (!html) return '';
 
     // 1️⃣ Remove all tags (including malformed ones)
@@ -1132,6 +1135,234 @@ handleHtmlClick(event: Event) {
     this.sessionUpdated.emit(this.session);
   }
 
+  // NEW — REALTIME AUDIO STREAMING
+
+interimSpeechTextForVtV:string ='';
+  isMuted: boolean = false;
+  // NEW — required for new UI
+  realtimeMessages: { sender: 'user' | 'assistant', text: string }[] = [];   // assistant messages
+  currentAssistantText = ''
+  // Realtime voice integration
+  private realtimeSubAudio?: Subscription;
+  private realtimeSubText?: Subscription;
+  realtimeConnected = false;
+  // set your realtime WS endpoint (node proxy)
+  private realtimeWsUrl = 'ws://localhost:3000'; // <- update to your actual WS URL (wss://prod-host/...)
+showVoiceAnimForAssistant:boolean=false;
+  async startRealtimeVoice() {
+    try {
+      this.errorMessage = '';
+      this.showVoiceAnimForAssistant = true; // show popup
+
+      await this.realtimeVoice.connect(this.realtimeWsUrl);
+      // subscribe to control events (openai.closed etc)
+      // keep a reference to the control subscription so you can unsubscribe later
+      this._realtimeControlSub = this.realtimeVoice.onControl().subscribe((ctl: any) => {
+        if (!ctl || !ctl.type) return;
+        // debug log
+        console.log('[Realtime] control event', ctl);
+
+        // OpenAI incremental audio arrives as base64 PCM16 in `delta`
+        if (ctl.type === 'response.audio.delta' && ctl.delta) {
+          // Ensure AudioContext is resumed (required by modern browsers)
+          this.currentAssistantText += ctl.delta;
+          if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume().catch(e => console.warn('audioctx resume failed', e));
+          }
+          // playPCM16 expects base64 string
+          this.playPCM16(ctl.delta);
+        }
+
+        // optionally handle transcript deltas to show interim text
+        if (ctl.type === 'response.audio_transcript.delta' && ctl.delta) {
+          console.log(ctl.delta);
+          
+          // if you want live transcript updates:
+          this.interimSpeechTextForVtV = (this.interimSpeechTextForVtV || '') + ctl.delta;
+          console.log(this.interimSpeechTextForVtV);
+          
+          // this.userInput = this.interimSpeechTextForVtV;
+        }
+
+        // When the model finishes responding
+if (ctl.type === 'openai.closed' || ctl.type === 'response.completed') {
+
+  // 1. Add user’s final spoken text into chat
+  if (this.interimSpeechTextForVtV && this.interimSpeechTextForVtV.trim()) {
+    // this.realtimeMessages.push({
+    //   sender: 'user',
+    //   text: this.interimSpeechTextForVtV.trim()
+    // });
+    console.log(this.interimSpeechTextForVtV);
+    
+  }
+
+  // 2. Clear interim
+  this.interimSpeechTextForVtV = '';
+
+  // 3. Add final assistant response
+  if (this.currentAssistantText && this.currentAssistantText.trim()) {
+    this.realtimeMessages.push({
+      sender: 'assistant',
+      text: this.currentAssistantText.trim()
+    });
+  }
+
+  // 4. Reset assistant buffer
+  this.currentAssistantText = '';
+
+  console.log('[Realtime] response completed');
+}
+
+      });
+
+
+      this.realtimeConnected = true;
+
+      // subscribe to server-sent transcribed text (optional)
+      this.realtimeSubText = this.realtimeVoice.onTranscript().subscribe((txt) => {
+        // update input while streaming if you want live transcription
+        this.ngZone.run(() => {
+          this.interimSpeechTextForVtV = txt;
+          console.log(this.interimSpeechTextForVtV);
+          
+          this.userInput = txt;
+        });
+      });
+
+      // subscribe to incoming audio chunks and play them
+      // new playback (use AudioContext to decode whatever audio format the server sends)
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+      this.realtimeSubAudio = this.realtimeVoice.onAudioChunk().subscribe((ab) => {
+        // ab is ArrayBuffer
+        audioCtx.decodeAudioData(
+          ab.slice(0), // provide a copy
+          (buffer) => {
+            try {
+              const source = audioCtx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(audioCtx.destination);
+              source.start(0);
+            } catch (playErr) {
+              console.warn('[RealtimeVoice] playback decode succeeded but play failed', playErr);
+            }
+          },
+          (err) => {
+            // Sometimes decode fails (browser may not support format). Fallback to Blob-play:
+            console.warn('[RealtimeVoice] audio decode error, falling back to blob playback', err);
+            try {
+              const blob = new Blob([ab], { type: 'audio/webm;codecs=opus' }); // try webm/opus by default
+              const url = URL.createObjectURL(blob);
+              const a = new Audio(url);
+              a.play().catch(e => console.warn('blob playback failed', e));
+            } catch (e) {
+              console.error('playback fallback failed', e);
+            }
+          }
+        );
+      });
+
+
+      // start sending mic audio as chunks
+      await this.realtimeVoice.startStreamingAudio(); // 150 ms chunks
+      this.isListening = true;
+    } catch (err) {
+      console.error('Realtime start failed', err);
+      this.showVoiceAnimForAssistant = false;
+      this.showError('Unable to start realtime voice. Check console.');
+    }
+  }
+
+  stopRealtimeVoice() {
+    // stop capture (this will ask server to commit via your mediaRecorder.onstop or worklet flow)
+    try { this.realtimeVoice.stopStreamingAudio(); } catch (e) { }
+    // keep ws open for a bit (safety timer already present in your code)
+    // unsubscribe control when fully stopping
+    if (this._realtimeControlSub) {
+      this._realtimeControlSub.unsubscribe();
+      this._realtimeControlSub = null;
+    }
+    // stop playback queue
+    this.playQueue = [];
+    this.isPlaying = false;
+    // optionally close audioCtx if you want to free resources
+    // this.audioCtx.close().catch(()=>{});
+    this.showVoiceAnimForAssistant = false;
+    this.isListening = false;
+
+  }
+
+
+  toggleMute() {
+    this.isMuted = !this.isMuted
+    console.log("Mute clicked");
+  }
+
+  private _realtimeControlSub: any = null;
+  private audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+  private playQueue: Float32Array[] = [];
+  private isPlaying = false;
+
+  private async playPCM16(base64Data: string) {
+    try {
+      // Decode base64 -> ArrayBuffer
+      const binary = atob(base64Data);
+      const buffer = new ArrayBuffer(binary.length);
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      // Interpret as little-endian Int16
+      const pcm16 = new Int16Array(buffer.byteLength / 2);
+      const dv = new DataView(buffer);
+      for (let i = 0; i < pcm16.length; i++) {
+        pcm16[i] = dv.getInt16(i * 2, true); // little-endian
+      }
+
+      // Convert Int16 -> Float32
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) {
+        float32[i] = pcm16[i] / 32768;
+      }
+
+      this.playQueue.push(float32);
+      if (!this.isPlaying) this.consumeQueue();
+    } catch (err) {
+      console.error('playPCM16 error', err);
+    }
+  }
+
+  private async consumeQueue() {
+    if (!this.audioCtx) {
+      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+
+    this.isPlaying = true;
+    while (this.playQueue.length > 0) {
+      const chunk = this.playQueue.shift();
+      if (!chunk) continue;
+      try {
+        const audioBuffer = this.audioCtx.createBuffer(1, chunk.length, 24000);
+        audioBuffer.copyToChannel(chunk, 0, 0);
+
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(this.audioCtx.destination);
+        // optional smoothing: source.playbackRate.value = 1.0;
+        source.start(0);
+
+        // wait for chunk to finish before playing next
+        await new Promise<void>((resolve) => {
+          source.onended = () => resolve();
+        });
+      } catch (err) {
+        console.warn('consumeQueue playback error', err);
+      }
+    }
+    this.isPlaying = false;
+  }
 
 
 }
