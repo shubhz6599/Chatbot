@@ -1147,7 +1147,7 @@ interimSpeechTextForVtV:string ='';
   private realtimeSubText?: Subscription;
   realtimeConnected = false;
   // set your realtime WS endpoint (node proxy)
-  private realtimeWsUrl = 'ws://localhost:3000'; // <- update to your actual WS URL (wss://prod-host/...)
+  private realtimeWsUrl = 'ws://localhost:3001'; // <- update to your actual WS URL (wss://prod-host/...)
 showVoiceAnimForAssistant:boolean=false;
   async startRealtimeVoice() {
     try {
