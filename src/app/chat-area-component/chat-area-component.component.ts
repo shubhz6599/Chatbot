@@ -514,7 +514,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   sendMessage(isFromMic: boolean = false, apiPrompt?: any) {
     // nothing to send
     if (!this.userInput.trim() && this.uploadedFiles.length === 0) return;
-    if(this.showVolume = true){
+    if (this.showVolume = true) {
       this.stop()
     }
     if (this.isWaitingForBot) return;
@@ -973,8 +973,8 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   // }
 
 
-  speak(text: string, ) {
-    const plainText =  this.stripHtml(text) ;
+  speak(text: string,) {
+    const plainText = this.stripHtml(text);
 
     this.showVolume = false;
 
@@ -1137,7 +1137,7 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
 
   // NEW — REALTIME AUDIO STREAMING
 
-interimSpeechTextForVtV:string ='';
+  interimSpeechTextForVtV: string = '';
   isMuted: boolean = false;
   // NEW — required for new UI
   realtimeMessages: { sender: 'user' | 'assistant', text: string }[] = [];   // assistant messages
@@ -1147,8 +1147,10 @@ interimSpeechTextForVtV:string ='';
   private realtimeSubText?: Subscription;
   realtimeConnected = false;
   // set your realtime WS endpoint (node proxy)
-  private realtimeWsUrl = 'ws://localhost:3001'; // <- update to your actual WS URL (wss://prod-host/...)
-showVoiceAnimForAssistant:boolean=false;
+  // private realtimeWsUrl = 'ws://localhost:3000/realtime';
+private realtimeWsUrl = 'wss://twillio-chatgpt-wrapper.onrender.com/realtime'; 
+  
+  showVoiceAnimForAssistant: boolean = false;
   async startRealtimeVoice() {
     try {
       this.errorMessage = '';
@@ -1176,43 +1178,45 @@ showVoiceAnimForAssistant:boolean=false;
         // optionally handle transcript deltas to show interim text
         if (ctl.type === 'response.audio_transcript.delta' && ctl.delta) {
           console.log(ctl.delta);
-          
+
           // if you want live transcript updates:
           this.interimSpeechTextForVtV = (this.interimSpeechTextForVtV || '') + ctl.delta;
           console.log(this.interimSpeechTextForVtV);
-          
+
           // this.userInput = this.interimSpeechTextForVtV;
         }
 
+        
+
         // When the model finishes responding
-if (ctl.type === 'openai.closed' || ctl.type === 'response.completed') {
+        if (ctl.type === 'openai.closed' || ctl.type === 'response.completed') {
 
-  // 1. Add user’s final spoken text into chat
-  if (this.interimSpeechTextForVtV && this.interimSpeechTextForVtV.trim()) {
-    // this.realtimeMessages.push({
-    //   sender: 'user',
-    //   text: this.interimSpeechTextForVtV.trim()
-    // });
-    console.log(this.interimSpeechTextForVtV);
-    
-  }
+          // 1. Add user’s final spoken text into chat
+          if (this.interimSpeechTextForVtV && this.interimSpeechTextForVtV.trim()) {
+            // this.realtimeMessages.push({
+            //   sender: 'user',
+            //   text: this.interimSpeechTextForVtV.trim()
+            // });
+            console.log(this.interimSpeechTextForVtV);
 
-  // 2. Clear interim
-  this.interimSpeechTextForVtV = '';
+          }
 
-  // 3. Add final assistant response
-  if (this.currentAssistantText && this.currentAssistantText.trim()) {
-    this.realtimeMessages.push({
-      sender: 'assistant',
-      text: this.currentAssistantText.trim()
-    });
-  }
+          // 2. Clear interim
+          this.interimSpeechTextForVtV = '';
 
-  // 4. Reset assistant buffer
-  this.currentAssistantText = '';
+          // 3. Add final assistant response
+          if (this.currentAssistantText && this.currentAssistantText.trim()) {
+            this.realtimeMessages.push({
+              sender: 'assistant',
+              text: this.currentAssistantText.trim()
+            });
+          }
 
-  console.log('[Realtime] response completed');
-}
+          // 4. Reset assistant buffer
+          this.currentAssistantText = '';
+
+          console.log('[Realtime] response completed');
+        }
 
       });
 
@@ -1225,7 +1229,7 @@ if (ctl.type === 'openai.closed' || ctl.type === 'response.completed') {
         this.ngZone.run(() => {
           this.interimSpeechTextForVtV = txt;
           console.log(this.interimSpeechTextForVtV);
-          
+
           this.userInput = txt;
         });
       });

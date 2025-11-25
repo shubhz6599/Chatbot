@@ -287,69 +287,44 @@
 </div>
 
 
-<div class="rt-overlay" *ngIf="showVoiceAnimForAssistant">
-  <div class="rt-container">
+<!-- Floating Assistant Widget -->
+<div class="rt-widget" *ngIf="showVoiceAnimForAssistant">
 
-    <!-- Header -->
-    <div class="rt-topbar">
-      <div class="rt-status">
-        <div class="rt-dot" [class.live]="realtimeConnected"></div>
-        <span>{{ realtimeConnected ? 'Assistant Live' : 'Connecting…' }}</span>
-      </div>
-
-      <button class="rt-end-btn" (click)="stopRealtimeVoice()">
-        <i class="material-icons">close</i>
-      </button>
+  <!-- Top Bar -->
+  <div class="rt-topbar">
+    <div class="rt-status">
+      <div class="rt-dot" [class.live]="realtimeConnected"></div>
+      <span class="rt-status-text">
+        {{ realtimeConnected ? 'Assistant Live' : 'Connecting…' }}
+      </span>
     </div>
-
-    <!-- Chat Window -->
-    <div class="rt-chat-window">
-      
- <div class="rt-chat-window">
-
-  <!-- ALL CHAT MESSAGES -->
-  <div *ngFor="let msg of realtimeMessages" 
-       class="rt-msg" 
-       [ngClass]="msg.sender">
-
-    <div class="rt-bubble" 
-         [ngClass]="msg.sender + '-bubble'">
-      {{ msg.text }}
-    </div>
+    <button class="rt-end-btn" (click)="stopRealtimeVoice()">
+      <i class="material-icons">close</i>
+    </button>
   </div>
 
-  <!-- INTERIM LIVE SPEECH TEXT -->
-  <div class="rt-msg interim" *ngIf="interimSpeechTextForVtV">
-    <!-- <div class="rt-bubble interim-bubble">
-      {{ interimSpeechTextForVtV }}
-    </div> -->
+  <!-- Modern Speaking Animation -->
+<!-- Voice State Animation -->
+<div class="rt-voice-animation">
+
+  <!-- Listening Animation -->
+  <div class="listening" *ngIf="isListening">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
   </div>
 
-  <!-- INCREMENTAL ASSISTANT RESPONSE -->
-  <!-- <div class="rt-msg assistant" *ngIf="currentAssistantText">
-    <div class="rt-bubble assistant-bubble">
-      {{ currentAssistantText }}
-    </div>
-  </div> -->
+
 
 </div>
 
 
-      <!-- <div class="rt-msg interim" *ngIf="interimSpeechText">
-        <div class="rt-bubble interim-bubble">{{ interimSpeechText }}</div>
-      </div> -->
-
-    </div>
-
-    <!-- Mic -->
-    <div class="rt-mic-wrapper">
-      <div class="rt-mic" [class.listening]="realtimeConnected">
-        <i class="material-icons">mic</i>
-      </div>
-      <p class="rt-caption">
-        {{ interimSpeechText ? 'Listening…' : 'Say something' }}
-      </p>
-    </div>
-
+  <!-- Bottom Mic / Caption -->
+  <div class="rt-mic-wrapper">
+    <p class="rt-caption">
+      {{ interimSpeechText ? 'Listening…' : 'Say something...' }}
+    </p>
   </div>
+
 </div>
+
