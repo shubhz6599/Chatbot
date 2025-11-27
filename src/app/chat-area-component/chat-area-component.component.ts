@@ -1148,8 +1148,8 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   realtimeConnected = false;
   // set your realtime WS endpoint (node proxy)
   // private realtimeWsUrl = 'ws://localhost:3000/realtime';
-private realtimeWsUrl = 'wss://twillio-chatgpt-wrapper.onrender.com/realtime'; 
-  
+private realtimeWsUrl = 'wss://twillio-chatgpt-wrapper.onrender.com/realtime';
+
   showVoiceAnimForAssistant: boolean = false;
   async startRealtimeVoice() {
     try {
@@ -1186,7 +1186,7 @@ private realtimeWsUrl = 'wss://twillio-chatgpt-wrapper.onrender.com/realtime';
           // this.userInput = this.interimSpeechTextForVtV;
         }
 
-        
+
 
         // When the model finishes responding
         if (ctl.type === 'openai.closed' || ctl.type === 'response.completed') {
