@@ -1148,154 +1148,188 @@ export class ChatAreaComponentComponent implements OnInit, OnDestroy, OnChanges 
   realtimeConnected = false;
   // set your realtime WS endpoint (node proxy)
   // private realtimeWsUrl = 'ws://localhost:3000/realtime';
-private realtimeWsUrl = 'wss://twillio-chatgpt-wrapper.onrender.com/realtime'; 
+// private realtimeWsUrl = 'wss://twillio-chatgpt-wrapper.onrender.com/realtime'; 
+private realtimeWsUrl = 'https://demo.trialdemo.uk/ws'; 
   
   showVoiceAnimForAssistant: boolean = false;
-  async startRealtimeVoice() {
-    try {
-      this.errorMessage = '';
-      this.showVoiceAnimForAssistant = true; // show popup
-
-      await this.realtimeVoice.connect(this.realtimeWsUrl);
-      // subscribe to control events (openai.closed etc)
-      // keep a reference to the control subscription so you can unsubscribe later
-      this._realtimeControlSub = this.realtimeVoice.onControl().subscribe((ctl: any) => {
-        if (!ctl || !ctl.type) return;
-        // debug log
-        console.log('[Realtime] control event', ctl);
-
-        // OpenAI incremental audio arrives as base64 PCM16 in `delta`
-        if (ctl.type === 'response.audio.delta' && ctl.delta) {
-          // Ensure AudioContext is resumed (required by modern browsers)
-          this.currentAssistantText += ctl.delta;
-          if (this.audioCtx.state === 'suspended') {
-            this.audioCtx.resume().catch(e => console.warn('audioctx resume failed', e));
-          }
-          // playPCM16 expects base64 string
-          this.playPCM16(ctl.delta);
-        }
-
-        // optionally handle transcript deltas to show interim text
-        if (ctl.type === 'response.audio_transcript.delta' && ctl.delta) {
-          console.log(ctl.delta);
-
-          // if you want live transcript updates:
-          this.interimSpeechTextForVtV = (this.interimSpeechTextForVtV || '') + ctl.delta;
-          console.log(this.interimSpeechTextForVtV);
-
-          // this.userInput = this.interimSpeechTextForVtV;
-        }
-
-        
-
-        // When the model finishes responding
-        if (ctl.type === 'openai.closed' || ctl.type === 'response.completed') {
-
-          // 1. Add user’s final spoken text into chat
-          if (this.interimSpeechTextForVtV && this.interimSpeechTextForVtV.trim()) {
-            // this.realtimeMessages.push({
-            //   sender: 'user',
-            //   text: this.interimSpeechTextForVtV.trim()
-            // });
-            console.log(this.interimSpeechTextForVtV);
-
-          }
-
-          // 2. Clear interim
-          this.interimSpeechTextForVtV = '';
-
-          // 3. Add final assistant response
-          if (this.currentAssistantText && this.currentAssistantText.trim()) {
-            this.realtimeMessages.push({
-              sender: 'assistant',
-              text: this.currentAssistantText.trim()
-            });
-          }
-
-          // 4. Reset assistant buffer
-          this.currentAssistantText = '';
-
-          console.log('[Realtime] response completed');
-        }
-
-      });
-
-
-      this.realtimeConnected = true;
-
-      // subscribe to server-sent transcribed text (optional)
-      this.realtimeSubText = this.realtimeVoice.onTranscript().subscribe((txt) => {
-        // update input while streaming if you want live transcription
-        this.ngZone.run(() => {
-          this.interimSpeechTextForVtV = txt;
-          console.log(this.interimSpeechTextForVtV);
-
-          this.userInput = txt;
-        });
-      });
-
-      // subscribe to incoming audio chunks and play them
-      // new playback (use AudioContext to decode whatever audio format the server sends)
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-
-      this.realtimeSubAudio = this.realtimeVoice.onAudioChunk().subscribe((ab) => {
-        // ab is ArrayBuffer
-        audioCtx.decodeAudioData(
-          ab.slice(0), // provide a copy
-          (buffer) => {
-            try {
-              const source = audioCtx.createBufferSource();
-              source.buffer = buffer;
-              source.connect(audioCtx.destination);
-              source.start(0);
-            } catch (playErr) {
-              console.warn('[RealtimeVoice] playback decode succeeded but play failed', playErr);
-            }
-          },
-          (err) => {
-            // Sometimes decode fails (browser may not support format). Fallback to Blob-play:
-            console.warn('[RealtimeVoice] audio decode error, falling back to blob playback', err);
-            try {
-              const blob = new Blob([ab], { type: 'audio/webm;codecs=opus' }); // try webm/opus by default
-              const url = URL.createObjectURL(blob);
-              const a = new Audio(url);
-              a.play().catch(e => console.warn('blob playback failed', e));
-            } catch (e) {
-              console.error('playback fallback failed', e);
-            }
-          }
-        );
-      });
-
-
-      // start sending mic audio as chunks
-      await this.realtimeVoice.startStreamingAudio(); // 150 ms chunks
-      this.isListening = true;
-    } catch (err) {
-      console.error('Realtime start failed', err);
-      this.showVoiceAnimForAssistant = false;
-      this.showError('Unable to start realtime voice. Check console.');
-    }
+ async startRealtimeVoice() {
+    // Prevent duplicate subscriptions
+  if (this._realtimeControlSub) {
+    this._realtimeControlSub.unsubscribe();
+    this._realtimeControlSub = null;
+  }
+  if (this.realtimeSubText) {
+    this.realtimeSubText.unsubscribe();
+  }
+  if (this.realtimeSubAudio) {
+    this.realtimeSubAudio.unsubscribe();
   }
 
-  stopRealtimeVoice() {
-    // stop capture (this will ask server to commit via your mediaRecorder.onstop or worklet flow)
-    try { this.realtimeVoice.stopStreamingAudio(); } catch (e) { }
-    // keep ws open for a bit (safety timer already present in your code)
-    // unsubscribe control when fully stopping
-    if (this._realtimeControlSub) {
-      this._realtimeControlSub.unsubscribe();
-      this._realtimeControlSub = null;
+  // ALSO close existing WebSocket if reconnecting
+  this.realtimeVoice.closeSocketIfOpen();
+  try {
+    this.errorMessage = '';
+    this.showVoiceAnimForAssistant = true;
+
+    // ---- 1) Connect WebSocket ----
+    await this.realtimeVoice.connect(this.realtimeWsUrl);
+    this.realtimeConnected = true;
+
+    // Prepare audio context
+    if (!this.audioCtx) {
+      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
-    // stop playback queue
-    this.playQueue = [];
-    this.isPlaying = false;
-    // optionally close audioCtx if you want to free resources
-    // this.audioCtx.close().catch(()=>{});
+
+    // ----------------------------------------------------------
+    // 2) HANDLE CONTROL & JSON EVENTS (React equivalent)
+    // ----------------------------------------------------------
+    this._realtimeControlSub = this.realtimeVoice.onControl().subscribe((ctl: any) => {
+      if (!ctl) return;
+
+      console.log("[Realtime-Control]", ctl);
+
+      // ----- MERGED REACT LOGIC -----
+
+      // 🔴 Stop audio queue playback (like react stopPlayback())
+      if (ctl.type === 'stop_playback') {
+        console.warn("🔴 stop_playback received");
+        this.playQueue = [];
+        this.isPlaying = false;
+        return;
+      }
+
+      // Download full report URL
+      if (ctl.type === 'download_report' && ctl.url) {
+        console.log("Download report:", ctl.url);
+        window.open(ctl.url, '_blank');
+        return;
+      }
+
+      // Download inlined report data
+      if (ctl.type === 'report_data' && ctl.data) {
+        console.log("Report data:", ctl.data);
+        window.open(ctl.data, '_blank');
+        return;
+      }
+
+      // Show transcription error
+      if (ctl.type === 'transcription_error') {
+        console.error("Transcription Error:", ctl.message, ctl.raw_details);
+        return;
+      }
+
+      // ----- OPENAI AUDIO DELTA -----
+      if (ctl.type === 'response.audio.delta' && ctl.delta) {
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume();
+        }
+        this.currentAssistantText += ctl.delta;
+        this.playPCM16(ctl.delta); // base64 → PCM → queue
+      }
+
+      // ----- TRANSCRIPT DELTA -----
+      if (ctl.type === 'response.audio_transcript.delta' && ctl.delta) {
+        this.interimSpeechTextForVtV = (this.interimSpeechTextForVtV || '') + ctl.delta;
+      }
+
+      // ----- RESPONSE COMPLETE -----
+      if (ctl.type === 'response.completed' || ctl.type === 'openai.closed') {
+        if (this.interimSpeechTextForVtV.trim()) {
+          console.log("Final User Transcript:", this.interimSpeechTextForVtV);
+        }
+
+        if (this.currentAssistantText.trim()) {
+          this.realtimeMessages.push({
+            sender: 'assistant',
+            text: this.currentAssistantText.trim()
+          });
+        }
+
+        this.currentAssistantText = '';
+        this.interimSpeechTextForVtV = '';
+      }
+    });
+
+    // ----------------------------------------------------------
+    // 3) HANDLE SERVER TRANSCRIPT (Optional)
+    // ----------------------------------------------------------
+  this.realtimeSubText = this.realtimeVoice.onText().subscribe((txt: string) => {
+  this.ngZone.run(() => {
+    this.interimSpeechTextForVtV = txt;
+    this.userInput = txt;
+  });
+});
+
+
+    // ----------------------------------------------------------
+    // 4) HANDLE PCM16 AUDIO CHUNKS (ArrayBuffer)
+    // ----------------------------------------------------------
+this.realtimeSubAudio = this.realtimeVoice.onAudioChunk().subscribe((ab: ArrayBuffer) => {
+  const u8 = new Uint8Array(ab);
+
+  // Convert UInt8 → Int16 → Float32 (React-compatible)
+  const pcm16 = new Int16Array(u8.buffer.byteLength / 2);
+  const dv = new DataView(u8.buffer);
+
+  for (let i = 0; i < pcm16.length; i++) {
+    pcm16[i] = dv.getInt16(i * 2, true);
+  }
+
+  const float32 = new Float32Array(pcm16.length);
+  for (let i = 0; i < pcm16.length; i++) {
+    float32[i] = pcm16[i] / 32768;
+  }
+
+  this.playQueue.push(float32);
+
+  if (!this.isPlaying) this.consumeQueue();
+});
+
+
+
+    // ----------------------------------------------------------
+    // 5) START MIC STREAMING
+    // ----------------------------------------------------------
+    await this.realtimeVoice.startStreamingAudio();
+    this.isListening = true;
+
+  } catch (err) {
+    console.error("Realtime Start Failed", err);
     this.showVoiceAnimForAssistant = false;
-    this.isListening = false;
-
+    this.showError("Unable to start realtime voice. Check console.");
   }
+}
+
+
+stopRealtimeVoice() {
+  try { 
+    this.realtimeVoice.stopStreamingAudio(); 
+  } catch {}
+
+  // Unsubscribe control
+  if (this._realtimeControlSub) {
+    this._realtimeControlSub.unsubscribe();
+    this._realtimeControlSub = null;
+  }
+
+  // Clear transcript
+  this.interimSpeechTextForVtV = '';
+  this.currentAssistantText = '';
+
+  // Stop audio playback queue
+  this.playQueue = [];
+  this.isPlaying = false;
+
+  // Stop UI
+  this.showVoiceAnimForAssistant = false;
+  this.isListening = false;
+
+  console.log("Realtime Voice Stopped.");
+  this.realtimeVoice.closeSocketIfOpen();
+  this.realtimeVoice.stopStreamingAudio();
+
+}
+
 
 
   toggleMute() {
@@ -1307,6 +1341,22 @@ private realtimeWsUrl = 'wss://twillio-chatgpt-wrapper.onrender.com/realtime';
   private audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
   private playQueue: Float32Array[] = [];
   private isPlaying = false;
+
+
+    private stopPlayback() {
+    try {
+      // clear playback queue and stop playing
+      this.playQueue = [];
+      this.isPlaying = false;
+      // if you want to close audio context optionally:
+      // this.audioCtx.close().catch(()=>{});
+      console.log('[Realtime] playback stopped (stop_playback control).');
+      // Optionally inform UI or show status
+      // e.g., this.setPlayStatus?.('⏹ Stopped') if you have such a method
+    } catch (e) {
+      console.warn('stopPlayback error', e);
+    }
+  }
 
   private async playPCM16(base64Data: string) {
     try {
