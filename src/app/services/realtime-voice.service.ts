@@ -67,7 +67,20 @@ export class RealtimeVoiceService {
     this.audioContext = new AudioContext({ sampleRate: 24000 });
     await this.audioContext.audioWorklet.addModule("assets/pcm-worklet-processor.js");
 
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // old code
+    // this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    // new code
+    this.mediaStream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+    channelCount: 1,
+    sampleRate: 24000
+  }
+});
+
 
     const src = this.audioContext.createMediaStreamSource(this.mediaStream);
     this.worklet = new AudioWorkletNode(this.audioContext, "pcm-worklet");
